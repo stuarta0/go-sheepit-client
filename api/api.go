@@ -28,6 +28,18 @@ type Endpoint struct {
 	MaxPeriod int
 }
 
+// /server/config.php
+//
+// <?xml version="1.0" encoding="utf-8" ?>
+// <config status="0">
+//     <request type="validate-job" path="/server/send_frame.php" />
+//     <request type="request-job" path="/server/request_job.php" />
+//     <request type="download-archive" path="/server/archive.php" />
+//     <request type="error" path="/server/error.php" />
+//     <request type="keepmealive" path="/server/keepmealive.php" max-period="800" />
+//     <request type="logout" path="/account.php?mode=logout&amp;worker=1" />
+//     <request type="last-render-frame" path="/ajax.php?action=webclient_get_last_render_frame_ui&amp;type=raw" />
+// </config>
 func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 	cpu := hardware.CpuStat()
 
@@ -50,19 +62,15 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 	}
 
 	url := fmt.Sprintf("%s/server/config.php?%s", c.Server, v.Encode())
-	fmt.Println("Requesting:", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println("GET error:")
-		fmt.Println(err)
+		return nil, err
 	}
 	defer resp.Body.Close()
     decoder := xml.NewDecoder(resp.Body)
 
     var xmlC xmlConfig
-    if err := decoder.Decode(&xmlC); err == nil {
-    	fmt.Printf("%+v\n", xmlC)
-    } else {
+    if err := decoder.Decode(&xmlC); err != nil {
     	return nil, err
     }
 
@@ -79,6 +87,30 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
     return m, nil
 }
 
+// /server/request_job.php
+//
+// FAILURE
+// <?xml version="1.0" encoding="utf-8"?>
+// <jobrequest status="205"/>
+//
+// SUCCESS
+// <?xml version="1.0" encoding="utf-8" ?>
+// <jobrequest status="0">
+//     <stats credits_session="0" credits_total="619296" frame_remaining="39752" waiting_project="50" connected_machine="391"/>
+//     <job id="1" use_gpu="1" archive_md5="fed2b5d02774c785d31c121a7c9ae217" path="compute-method.blend" frame="0340" synchronous_upload="1" extras="" name="computer_check" password="">
+//         <renderer md5="fc6ecd3558678b844c8dac88428bf15e" commandline=".e --factory-startup --disable-autoexec -b .c -o .o -f .f -x 1" update_method="remainingtime"/>
+//         <script>import bpy
+
+// # if it's a movie clip, switch to png
+// fileformat = bpy.context.scene.render.image_settings.file_format
+// if fileformat != 'BMP' and fileformat != 'PNG' and fileformat != 'JPEG' and fileformat != 'TARGA' and fileformat != 'TARGA_RAW' :
+// 	bpy.context.scene.render.image_settings.file_format = 'PNG'
+// 	#bpy.context.scene.render.file_extension = '.png'
+// 	bpy.context.scene.render.filepath = ''
+
+// </script>
+//     </job>
+// </jobrequest>
 func RequestJob(c common.Configuration, endpoint string) error {
 	fmt.Printf("Request job: %s/%s\n", c.Server, endpoint)
 	return nil

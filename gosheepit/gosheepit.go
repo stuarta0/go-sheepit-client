@@ -1,12 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"flag"
-	//"net/http"
-	//"io/ioutil"
 	"os"
-	//"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -18,7 +17,6 @@ import (
 )
 
 func main() {
-
 	config := common.Configuration{Server:"example"} // always overidden :(
 	flag.StringVar(&config.Server, "server", "", "Render-farm server")
 	flag.StringVar(&config.Login, "login", "", "User's login")
@@ -57,11 +55,11 @@ func main() {
 	// if we have a config file, use it's values for those that weren't provided
 	// NOTE: the java client config file is incompatible - it needs to be reformatted to valid TOML (i.e. quoted values for strings)
 	if _, err := os.Stat(*configPathPtr); err != nil {
-		fmt.Printf("config file \"%s\" does not exist\n", *configPathPtr)
+		fmt.Printf("Config file \"%s\" does not exist\n", *configPathPtr)
 	} else {
 		config2 := common.Configuration{}
 		if _, err := toml.DecodeFile(*configPathPtr, &config2); err != nil {
-			fmt.Printf("unable to read toml \"%s\": %s\n", *configPathPtr, err)
+			fmt.Printf("Unable to read config \"%s\": %s\n", *configPathPtr, err)
 		} else {
 
 			if !su.IsEmpty(config2.ProjectDir) {
@@ -71,6 +69,10 @@ func main() {
 			config.Merge(config2)
 		}
 	}
+
+	config.SetDefaults()
+	fmt.Println("Running client with the following configuration (password omitted):")
+	Dump(config)
 
 	// manage shutdown/exit calls
 	sigs := make(chan os.Signal, 1)
@@ -90,7 +92,6 @@ func main() {
 	}()
 
 	// run client to manage rendering jobs requested from server
-	config.Init()
 	client := sheepit.Client{Configuration:config}
 	if e := client.Run(); e != nil {
 		panic(fmt.Sprint("client failed: ", e))
@@ -98,4 +99,13 @@ func main() {
 
 	// wait for exit signal
 	//<-done
+}
+
+func Dump(obj interface{}) {
+	if b, err := json.Marshal(obj); err == nil {
+		var out bytes.Buffer
+		json.Indent(&out, b, "", "\t")
+		out.WriteTo(os.Stdout)
+		fmt.Println()
+	}
 }

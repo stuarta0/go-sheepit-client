@@ -42,7 +42,7 @@ type Configuration struct {
 	Server string
 	Proxy string
 	Login string
-	Password string
+	Password string `json:"-"`
 
 	// Directory containing downloaded project files. Default /tmp
 	ProjectDir string `toml:"cache-dir"`
@@ -80,14 +80,11 @@ func (c *Configuration) SetGpuDevice(gpu string) {
 	// TODO
 }
 
-// After setting up Configuration struct, call Init() to ensure remaining defaults are correctly configured (e.g. working directories)
-func (c *Configuration) Init() {
+// After setting up Configuration struct, call SetDefaults() to ensure remaining defaults are correctly configured (e.g. working directories)
+func (c *Configuration) SetDefaults() {
 	if su.IsEmpty(c.Server) {
 		c.Server = "https://client.sheepit-renderfarm.com"
-	} 
-	// else if c.Server[len(c.Server) - 1] == '/' {
-	// 	c.Server = c.Server[0:len(c.Server)-2]
-	// }
+	}
 
 	if su.IsEmpty(c.ProjectDir) {
 		if dir, err := ioutil.TempDir("", "farm_"); err != nil {

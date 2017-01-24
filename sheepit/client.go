@@ -38,7 +38,7 @@ func (c *Client) Run() error {
 		// http://blog.httpwatch.com/2009/02/20/how-secure-are-query-strings-over-https/ and https://blog.codinghorror.com/youre-probably-storing-passwords-incorrectly/
 		// get response which will be content-type: text/xml (see below for structure)
 		// store all the key/value pairs, and make keepalive = (int(max-period) - 120) * 1000 // 2mins of safety net apparently; *1000 is probably to convert to milliseconds for a timer
-	endpoints, err := api.GetServerConfiguration(c.Configuration)
+	endpoints, err := api.GetEndpoints(c.Configuration)
 	if err != nil {
 		return err
 	}

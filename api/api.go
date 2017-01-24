@@ -28,7 +28,7 @@ type Endpoint struct {
 	MaxPeriod int
 }
 
-func GetServerConfiguration(c common.Configuration) (map[string]Endpoint, error) {
+func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 	cpu := hardware.CpuStat()
 
 	v := url.Values{}

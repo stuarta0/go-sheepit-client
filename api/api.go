@@ -3,9 +3,8 @@ package api
 import (
 	"fmt"
 	"errors"
-	//"net/http"
+	"net/http"
 	"net/url"
-	"os"
 	"encoding/xml"
 
 	"github.com/stuarta0/go-sheepit-client/common"
@@ -52,22 +51,14 @@ func GetServerConfiguration(c common.Configuration) (map[string]Endpoint, error)
 
 	url := fmt.Sprintf("%s/server/config.php?%s", c.Server, v.Encode())
 	fmt.Println("Requesting:", url)
-	// resp, err := http.Get(url)
-	// if err != nil {
-	// 	fmt.Println("GET error:")
-	// 	fmt.Println(err)
-	// }
-	// defer resp.Body.Close()
-	// body, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return err
-	// }
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("GET error:")
+		fmt.Println(err)
+	}
+	defer resp.Body.Close()
+    decoder := xml.NewDecoder(resp.Body)
 
-	f, _ := os.Open(`C:\Users\Stuart\.sheepit\config_response.xml`)
-	defer f.Close()
-    decoder := xml.NewDecoder(f)
-
-    // for small XML, use whole decode
     var xmlC xmlConfig
     if err := decoder.Decode(&xmlC); err == nil {
     	fmt.Printf("%+v\n", xmlC)
@@ -92,29 +83,3 @@ func RequestJob(c common.Configuration, endpoint string) error {
 	fmt.Printf("Request job: %s/%s\n", c.Server, endpoint)
 	return nil
 }
-
-
-
-
-// // Another xml method
-// b, _ := ioutil.ReadAll(f)
-// var xmlC xmlConfig
-// xml.Unmarshal(b, &xmlC)
-// fmt.Printf("%+v\n", xmlC)
-
-
-// // for reading large XML, use streaming method
-// // https://www.goinggo.net/2013/06/reading-xml-documents-in-go.html
-// for {
-// 	t, _ := decoder.Token(); 
-// 	if t == nil { break }
-
-// 	switch se := t.(type) {
-// 	case xml.StartElement:
-// 		if se.Name.Local == "config" {
-// 			var c xmlConfig
-// 			decoder.DecodeElement(&c, &se)
-			// fmt.Printf("%+v\n", c)
-// 		}
-// 	}
-// }

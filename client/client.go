@@ -41,6 +41,14 @@ func (c *Client) Run() error {
 
 	// server.start() - server class inherits from Thread, calls run() which calls stayAlive() which loops indefinitely sleeping every minute until keepalive exceeded, then stats are sent and server can request current job be terminated
 	// starts anonymous func as Thread to continually check for finished job to send
+	var currentJob common.Job
+	terminate := make(chan int)
+	go func() {
+		endpoint := endpoints["keepmealive"]
+		if currentJob.Id != 0 {
+			api.SendKeepalive(endpoint.Location, c.Configuration, &currentJob, terminate)
+		}
+	}()
 
 	//  
 	// loop starts here (1 loop = 1 frame rendered for a job)
@@ -51,10 +59,11 @@ func (c *Client) Run() error {
 		// look up error code from jobrequest.prop['status'], if != 0, error (see Errors for full list of server error codes)
 		// get stats and ensure all required attributes are present for job/renderer
 		// return new Job
-	_, err2 := api.RequestJob(c.Configuration, endpoints["request-job"].Location)
+	job, err2 := api.RequestJob(endpoints["request-job"].Location, c.Configuration)
 	if err2 != nil {
 		return err2
 	}
+	currentJob = *job
 
 	// lots of exception handling for various states, if job null then sleep 15 minutes
 	// now work(job)

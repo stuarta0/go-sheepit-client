@@ -1,14 +1,16 @@
 package api
 
 import (
-	"fmt"
+	"encoding/xml"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"net/url"
-	"encoding/xml"
 
 	"github.com/stuarta0/go-sheepit-client/common"
 	"github.com/stuarta0/go-sheepit-client/hardware"
+	su "github.com/stuarta0/go-sheepit-client/stringutils"
 )
 
 
@@ -64,6 +66,10 @@ type xmlJobRequest struct {
 	Job xmlJob `xml:"job"`
 }
 
+type xmlKeepalive struct {
+	Status int `xml:"status,attr"`
+}
+
 // /server/config.php
 //
 // <?xml version="1.0" encoding="utf-8" ?>
@@ -77,6 +83,7 @@ type xmlJobRequest struct {
 //     <request type="last-render-frame" path="/ajax.php?action=webclient_get_last_render_frame_ui&amp;type=raw" />
 // </config>
 func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
+	cpu := hardware.CpuStat()
 	v := url.Values{}
 	v.Set("login", c.Login)
 	v.Set("password", c.Password)
@@ -92,7 +99,6 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 	if c.UseCores > 0  {
 		v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
 	} else {
-		cpu := hardware.CpuStat()
 		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
 	}
 
@@ -146,7 +152,7 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 // </script>
 //     </job>
 // </jobrequest>
-func RequestJob(c common.Configuration, endpoint string) (*common.Job, error) {
+func RequestJob(endpoint string, c common.Configuration) (*common.Job, error) {
 	v := url.Values{}
 	v.Set("computemethod", fmt.Sprintf("%d", c.ComputeMethod))
 	if c.UseCores > 0  {
@@ -179,4 +185,47 @@ func RequestJob(c common.Configuration, endpoint string) (*common.Job, error) {
     // TODO: massage data
     fmt.Printf("%+v\n", xmlJ)
     return nil, nil
+}
+
+func SendKeepalive(endpoint string, c common.Configuration, job *common.Job, terminate chan<- int) error {
+
+	// TODO: get values for job in a thread locking context here
+
+	v := url.Values{}
+	v.Set("job", fmt.Sprintf("%d", job.Id))
+	v.Set("frame", fmt.Sprintf("%d", job.Frame))
+	if !su.IsEmpty("") {
+		v.Set("extras", job.Extras)
+	}
+	// TODO
+	// if job.Renderer != nil {
+	// 	v.Set("rendertime", job.Renderer.ElapsedDuration)
+	// 	v.Set("remainingtime", job.Renderer.RemainingDuration)
+	// }
+
+	url := fmt.Sprintf("%s/%s?%s", c.Server, endpoint, v.Encode())
+	fmt.Println("Requesting:", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Request failed")
+		return err
+	}
+	defer resp.Body.Close()
+    decoder := xml.NewDecoder(resp.Body)
+
+    var xmlK xmlKeepalive
+    if err := decoder.Decode(&xmlK); err != nil {
+    	fmt.Println("Decode failed")
+    	return err
+    }
+
+    if xmlK.Status == common.KEEPMEALIVE_STOP_RENDERING {
+    	log.Println("Server::keeepmealive server asked to kill local render process")
+ 		// this.client.getRenderingJob().setServerBlockJob(true);
+		// OS.getOS().kill(this.client.getRenderingJob().getProcessRender().getProcess());
+		// this.client.getRenderingJob().setAskForRendererKill(true);
+    	terminate <- job.Id
+    }
+
+    return nil
 }

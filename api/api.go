@@ -30,8 +30,7 @@ type Endpoint struct {
 }
 
 func GetServerConfiguration(c common.Configuration) (map[string]Endpoint, error) {
-	platform := hardware.Windows{}
-	cpu := platform.Cpu()
+	cpu := hardware.CpuStat()
 
 	v := url.Values{}
 	v.Set("login", c.Login)
@@ -39,8 +38,8 @@ func GetServerConfiguration(c common.Configuration) (map[string]Endpoint, error)
 	v.Set("cpu_family", cpu.Family)
 	v.Set("cpu_model", cpu.Model)
 	v.Set("cpu_model_name", cpu.Name)
-	v.Set("os", platform.Name())
-	v.Set("ram", fmt.Sprintf("%d", platform.TotalMemory()))
+	v.Set("os", hardware.PlatformName())
+	v.Set("ram", fmt.Sprintf("%d", hardware.TotalMemory()))
 	v.Set("bits", cpu.Architecture)
 	v.Set("version", "5.290.2718")
 	v.Set("hostname", "stuarta0-skylake")

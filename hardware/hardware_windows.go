@@ -8,17 +8,15 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-type Windows struct {}
-
-func (w Windows) Name() string {
+func PlatformName() string {
 	return "windows"
 }
 
-func (w Windows) RendererPath() string {
+func RendererPath() string {
 	return "rend.exe"
 }
 
-func (w Windows) Cpu() *Cpu {
+func CpuStat() *Cpu {
 	//cpu := Cpu{Family: "Intel", Name: "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz", Model: "i7-6700", Cores: 8, Architecture: "64bit"}
 	cpu := Cpu{Family: "family", Name: "name", Model: "model", TotalCores: 0, Architecture: "arch"}
 
@@ -64,11 +62,11 @@ func (w Windows) Cpu() *Cpu {
 	return &cpu
 }
 
-func (w Windows) Gpu() *Gpu {
+func GpuStat() *Gpu {
 	return &Gpu {Model: "GeForce GTX 780", CudaName: "CUDA_0", TotalMemory: 3355443}
 }
 
-func (w Windows) TotalMemory() uint64 {
+func TotalMemory() uint64 {
 	// TODO: Calculate total memory
 	return 16777216
 }

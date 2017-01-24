@@ -25,8 +25,7 @@ func (c *Client) Run() error {
 
 	// if !OS supported, panic
 	// if !CPU supported, panic
-	platform := hardware.Windows{}
-	cpu := platform.Cpu()
+	cpu := hardware.CpuStat()
 	if !cpu.IsValid() {
 		return errors.New("CPU not supported.")
 	}

@@ -1,4 +1,4 @@
-package sheepit
+package common
 
 import (
 	//"errors"

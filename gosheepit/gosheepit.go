@@ -11,8 +11,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/stuarta0/go-sheepit-client/client"
 	"github.com/stuarta0/go-sheepit-client/common"
-	"github.com/stuarta0/go-sheepit-client/sheepit"
 	su "github.com/stuarta0/go-sheepit-client/stringutils"
 )
 
@@ -92,9 +92,9 @@ func main() {
 	}()
 
 	// run client to manage rendering jobs requested from server
-	client := sheepit.Client{Configuration:config}
+	client := client.Client{Configuration:config}
 	if e := client.Run(); e != nil {
-		panic(fmt.Sprint("client failed: ", e))
+		panic(fmt.Sprintf("Client.Run() raised error: %s", e))
 	}
 
 	// wait for exit signal

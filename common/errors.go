@@ -136,6 +136,6 @@ func ErrorAsString(in int) string {
 	case NO_SPACE_LEFT_ON_DEVICE:
 		return "No space left on hard disk"
 	default:
-		return fmt.Sprintf("Error %d", in);
+		return fmt.Sprintf("SheepIt Error Code %d", in);
 	}
 }

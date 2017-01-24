@@ -12,6 +12,11 @@ import (
 )
 
 
+type Endpoint struct {
+	Location string
+	MaxPeriod int
+}
+
 type xmlRequest struct {
 	Type string `xml:"type,attr"`
 	Path string `xml:"path,attr"`
@@ -23,9 +28,40 @@ type xmlConfig struct {
 	Requests []xmlRequest `xml:"request"`
 }
 
-type Endpoint struct {
-	Location string
-	MaxPeriod int
+
+type xmlStats struct {
+	CreditsSession int    `xml:"credits_session,attr"`
+	CreditsTotal int      `xml:"credits_total,attr"`
+	FramesRemaining int   `xml:"frame_remaining,attr"`
+	WaitingProjects int   `xml:"waiting_project,attr"`
+	ConnectedMachines int `xml:"connected_machine,attr"`
+}
+
+type xmlRenderer struct {
+	Md5 string          `xml:"md5,attr"`
+	Command string      `xml:"commandline,attr"`
+	UpdateMethod string `xml:"update_method,attr"`
+}
+
+type xmlJob struct {
+	Id int                 `xml:"id,attr"`
+	UseGpu bool            `xml:"use_gpu,attr"`
+	ArchiveMd5 string      `xml:"archive_md5,attr"`
+	Path string            `xml:"path,attr"`
+	Frame int              `xml:"frame,attr"`
+	SynchronousUpload bool `xml:"synchronous_upload,attr"`
+	Extras string          `xml:"extras,attr"`
+	Name string            `xml:"name,attr"`
+	Password string        `xml:"password,attr"`
+
+	Renderer xmlRenderer   `xml:"renderer"`
+	Script string          `xml:"script"`
+}
+
+type xmlJobRequest struct {
+	Status int `xml:"status,attr"`
+	Stats xmlStats `xml:"stats"`
+	Job xmlJob `xml:"job"`
 }
 
 // /server/config.php
@@ -41,8 +77,6 @@ type Endpoint struct {
 //     <request type="last-render-frame" path="/ajax.php?action=webclient_get_last_render_frame_ui&amp;type=raw" />
 // </config>
 func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
-	cpu := hardware.CpuStat()
-
 	v := url.Values{}
 	v.Set("login", c.Login)
 	v.Set("password", c.Password)
@@ -58,6 +92,7 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 	if c.UseCores > 0  {
 		v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
 	} else {
+		cpu := hardware.CpuStat()
 		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
 	}
 
@@ -111,7 +146,37 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 // </script>
 //     </job>
 // </jobrequest>
-func RequestJob(c common.Configuration, endpoint string) error {
-	fmt.Printf("Request job: %s/%s\n", c.Server, endpoint)
-	return nil
+func RequestJob(c common.Configuration, endpoint string) (*common.Job, error) {
+	v := url.Values{}
+	v.Set("computemethod", fmt.Sprintf("%d", c.ComputeMethod))
+	if c.UseCores > 0  {
+		v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
+	} else {
+		cpu := hardware.CpuStat()
+		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
+	}
+
+	url := fmt.Sprintf("%s/%s?%s", c.Server, endpoint, v.Encode())
+	fmt.Println("Requesting:", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Request failed")
+		return nil, err
+	}
+	defer resp.Body.Close()
+    decoder := xml.NewDecoder(resp.Body)
+
+    var xmlJ xmlJobRequest
+    if err := decoder.Decode(&xmlJ); err != nil {
+    	fmt.Println("Decode failed")
+    	return nil, err
+    }
+
+    if xmlJ.Status != 0 {
+    	return nil, errors.New(fmt.Sprintf("SheepIt Server Error Code %d", xmlJ.Status)) // errors.New(common.ErrorAsString(common.ServerCodeToError(xmlJ.Status)))
+    }
+
+    // TODO: massage data
+    fmt.Printf("%+v\n", xmlJ)
+    return nil, nil
 }

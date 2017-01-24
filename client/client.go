@@ -1,4 +1,4 @@
-package sheepit
+package client
 
 import (
 	"errors"
@@ -34,9 +34,9 @@ func (c *Client) Run() error {
 		// http://blog.httpwatch.com/2009/02/20/how-secure-are-query-strings-over-https/ and https://blog.codinghorror.com/youre-probably-storing-passwords-incorrectly/
 		// get response which will be content-type: text/xml (see below for structure)
 		// store all the key/value pairs, and make keepalive = (int(max-period) - 120) * 1000 // 2mins of safety net apparently; *1000 is probably to convert to milliseconds for a timer
-	endpoints, err := api.GetEndpoints(c.Configuration)
-	if err != nil {
-		return err
+	endpoints, err1 := api.GetEndpoints(c.Configuration)
+	if err1 != nil {
+		return err1
 	}
 
 	// server.start() - server class inherits from Thread, calls run() which calls stayAlive() which loops indefinitely sleeping every minute until keepalive exceeded, then stats are sent and server can request current job be terminated
@@ -51,9 +51,9 @@ func (c *Client) Run() error {
 		// look up error code from jobrequest.prop['status'], if != 0, error (see Errors for full list of server error codes)
 		// get stats and ensure all required attributes are present for job/renderer
 		// return new Job
-	err = api.RequestJob(c.Configuration, endpoints["request-job"].Location)
-	if err != nil {
-		return err
+	_, err2 := api.RequestJob(c.Configuration, endpoints["request-job"].Location)
+	if err2 != nil {
+		return err2
 	}
 
 	// lots of exception handling for various states, if job null then sleep 15 minutes

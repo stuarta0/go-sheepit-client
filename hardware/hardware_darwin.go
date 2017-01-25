@@ -1,30 +1,30 @@
 package hardware
 
 import (
-	"path"
+    "path"
 )
 
 func PlatformName() string {
-	return "mac"
+    return "mac"
 }
 
 func RendererPath() string {
-	return path.Join("Blender", "blender.app", "Contents", "MacOS", "blender")
+    return path.Join("Blender", "blender.app", "Contents", "MacOS", "blender")
 }
 
 func CpuStat() *Cpu {
-	cpu := Cpu{}
+    cpu := Cpu{}
 
-	// TODO: implement mac stats
+    // TODO: implement mac stats
 
-	return &cpu
+    return &cpu
 }
 
 func GpuStat() *Gpu {
-	return &Gpu {}
+    return &Gpu {}
 }
 
 func TotalMemory() uint64 {
-	// TODO: Calculate total memory
-	return 8350000
+    // TODO: Calculate total memory
+    return 8350000
 }

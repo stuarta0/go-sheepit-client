@@ -1,13 +1,13 @@
 package stringutils
 
 import (
-	"strings"
+    "strings"
 )
 
 func IsEmpty(s string) bool {
-	return strings.TrimSpace(s) == ""
+    return strings.TrimSpace(s) == ""
 }
 
 func IsEmptyPtr(s *string) bool {
-	return s == nil || IsEmpty(*s)
+    return s == nil || IsEmpty(*s)
 }

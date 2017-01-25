@@ -1,60 +1,60 @@
 package api
 
 import (
-	"encoding/xml"
-	"errors"
-	"fmt"
-	"log"
-	"net/http"
-	"net/http/cookiejar"
-	"net/url"
-	"time"
+    "encoding/xml"
+    "errors"
+    "fmt"
+    "log"
+    "net/http"
+    "net/http/cookiejar"
+    "net/url"
+    "time"
 
-	"github.com/stuarta0/go-sheepit-client/common"
-	"github.com/stuarta0/go-sheepit-client/hardware"
-	su "github.com/stuarta0/go-sheepit-client/stringutils"
+    "github.com/stuarta0/go-sheepit-client/common"
+    "github.com/stuarta0/go-sheepit-client/hardware"
+    su "github.com/stuarta0/go-sheepit-client/stringutils"
 )
 
 type endpoint struct {
-	Location string
-	Timeout int
+    Location string
+    Timeout int
 }
 
 type xmlRequest struct {
-	Type string `xml:"type,attr"`
-	Path string `xml:"path,attr"`
-	MaxPeriod int `xml:"max-period,attr"`
+    Type string `xml:"type,attr"`
+    Path string `xml:"path,attr"`
+    MaxPeriod int `xml:"max-period,attr"`
 }
 
 type xmlConfig struct {
-	Status int `xml:"status,attr"`
-	Requests []xmlRequest `xml:"request"`
+    Status int `xml:"status,attr"`
+    Requests []xmlRequest `xml:"request"`
 }
 
 
 type xmlStats struct {
-	CreditsSession int    `xml:"credits_session,attr"`
-	CreditsTotal int      `xml:"credits_total,attr"`
-	FramesRemaining int   `xml:"frame_remaining,attr"`
-	WaitingProjects int   `xml:"waiting_project,attr"`
-	ConnectedMachines int `xml:"connected_machine,attr"`
+    CreditsSession int    `xml:"credits_session,attr"`
+    CreditsTotal int      `xml:"credits_total,attr"`
+    FramesRemaining int   `xml:"frame_remaining,attr"`
+    WaitingProjects int   `xml:"waiting_project,attr"`
+    ConnectedMachines int `xml:"connected_machine,attr"`
 }
 
 type xmlJobRequest struct {
-	Status int `xml:"status,attr"`
-	Stats xmlStats `xml:"stats"`
-	Job common.Job `xml:"job"`
+    Status int `xml:"status,attr"`
+    Stats xmlStats `xml:"stats"`
+    Job common.Job `xml:"job"`
 }
 
 type xmlKeepalive struct {
-	Status int `xml:"status,attr"`
+    Status int `xml:"status,attr"`
 }
 
 type Api struct {
-	Server string
-	client http.Client
-	endpoints map[string]endpoint
-	lastRequest time.Time
+    Server string
+    client http.Client
+    endpoints map[string]endpoint
+    lastRequest time.Time
 }
 
 
@@ -71,55 +71,55 @@ type Api struct {
 //     <request type="last-render-frame" path="/ajax.php?action=webclient_get_last_render_frame_ui&amp;type=raw" />
 // </config>
 func New(c common.Configuration) (*Api, error) {
-	api := Api{Server:c.Server}
-	if jar, err := cookiejar.New(nil); err == nil {
-		api.client = http.Client{Jar: jar}
-	} else {
-		return nil, errors.New("GetEndpoints couldn't store cookies")
-	}
+    api := Api{Server:c.Server}
+    if jar, err := cookiejar.New(nil); err == nil {
+        api.client = http.Client{Jar: jar}
+    } else {
+        return nil, errors.New("GetEndpoints couldn't store cookies")
+    }
 
-	cpu := hardware.CpuStat()
-	v := url.Values{}
-	v.Set("login", c.Login)
-	v.Set("password", c.Password)
-	v.Set("cpu_family", cpu.Family)
-	v.Set("cpu_model", cpu.Model)
-	v.Set("cpu_model_name", cpu.Name)
-	v.Set("os", hardware.PlatformName())
-	v.Set("ram", fmt.Sprintf("%d", hardware.TotalMemory()))
-	v.Set("bits", cpu.Architecture)
-	v.Set("version", "5.290.2718")
-	v.Set("hostname", "stuarta0-skylake")
-	v.Set("extras", c.Extras)
-	if c.UseCores > 0  {
-		v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
-	} else {
-		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
-	}
+    cpu := hardware.CpuStat()
+    v := url.Values{}
+    v.Set("login", c.Login)
+    v.Set("password", c.Password)
+    v.Set("cpu_family", cpu.Family)
+    v.Set("cpu_model", cpu.Model)
+    v.Set("cpu_model_name", cpu.Name)
+    v.Set("os", hardware.PlatformName())
+    v.Set("ram", fmt.Sprintf("%d", hardware.TotalMemory()))
+    v.Set("bits", cpu.Architecture)
+    v.Set("version", "5.290.2718")
+    v.Set("hostname", "stuarta0-skylake")
+    v.Set("extras", c.Extras)
+    if c.UseCores > 0  {
+        v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
+    } else {
+        v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
+    }
 
-	url := fmt.Sprintf("%s/server/config.php?%s", api.Server, v.Encode())
-	resp, err := api.client.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	api.lastRequest = time.Now()
+    url := fmt.Sprintf("%s/server/config.php?%s", api.Server, v.Encode())
+    resp, err := api.client.Get(url)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+    api.lastRequest = time.Now()
     decoder := xml.NewDecoder(resp.Body)
 
     var xmlC xmlConfig
     if err := decoder.Decode(&xmlC); err != nil {
-    	return nil, err
+        return nil, err
     }
 
     if xmlC.Status != 0 {
-    	return nil, errors.New(common.ErrorAsString(common.ServerCodeToError(xmlC.Status)))
+        return nil, errors.New(common.ErrorAsString(common.ServerCodeToError(xmlC.Status)))
     }
 
     // convert XML representation to simpler data structure
     m := make(map[string]endpoint)
     for _, r := range xmlC.Requests {
-    	req := endpoint{Location:r.Path, Timeout:r.MaxPeriod}
-    	m[r.Type] = req
+        req := endpoint{Location:r.Path, Timeout:r.MaxPeriod}
+        m[r.Type] = req
     }
     api.endpoints = m
     return &api, nil
@@ -142,84 +142,87 @@ func New(c common.Configuration) (*Api, error) {
 // # if it's a movie clip, switch to png
 // fileformat = bpy.context.scene.render.image_settings.file_format
 // if fileformat != 'BMP' and fileformat != 'PNG' and fileformat != 'JPEG' and fileformat != 'TARGA' and fileformat != 'TARGA_RAW' :
-// 	bpy.context.scene.render.image_settings.file_format = 'PNG'
-// 	#bpy.context.scene.render.file_extension = '.png'
-// 	bpy.context.scene.render.filepath = ''
+//  bpy.context.scene.render.image_settings.file_format = 'PNG'
+//  #bpy.context.scene.render.file_extension = '.png'
+//  bpy.context.scene.render.filepath = ''
 
 // </script>
 //     </job>
 // </jobrequest>
 func (api *Api) RequestJob(c common.Configuration) (*common.Job, error) {
-	v := url.Values{}
-	v.Set("computemethod", fmt.Sprintf("%d", c.ComputeMethod))
-	if c.UseCores > 0  {
-		v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
-	} else {
-		cpu := hardware.CpuStat()
-		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
-	}
+    v := url.Values{}
+    v.Set("computemethod", fmt.Sprintf("%d", c.ComputeMethod))
+    if c.UseCores > 0  {
+        v.Set("cpu_cores", fmt.Sprintf("%d", c.UseCores))
+    } else {
+        cpu := hardware.CpuStat()
+        v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
+    }
 
-	url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["request-job"].Location, v.Encode())
-	resp, err := api.client.Get(url)
-	if err != nil {
-		fmt.Println("Request failed")
-		return nil, err
-	}
-	defer resp.Body.Close()
-	api.lastRequest = time.Now()
+    url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["request-job"].Location, v.Encode())
+    resp, err := api.client.Get(url)
+    if err != nil {
+        fmt.Println("Request failed")
+        return nil, err
+    }
+    defer resp.Body.Close()
+    api.lastRequest = time.Now()
     decoder := xml.NewDecoder(resp.Body)
 
     var xmlJ xmlJobRequest
     if err := decoder.Decode(&xmlJ); err != nil {
-    	fmt.Println("Decode failed")
-    	return nil, err
+        fmt.Println("Decode failed")
+        return nil, err
     }
 
     if xmlJ.Status != 0 {
-    	return nil, errors.New(fmt.Sprintf("SheepIt Server Error Code %d", xmlJ.Status)) // errors.New(common.ErrorAsString(common.ServerCodeToError(xmlJ.Status)))
+        return nil, errors.New(fmt.Sprintf("SheepIt Server Error Code %d", xmlJ.Status)) // errors.New(common.ErrorAsString(common.ServerCodeToError(xmlJ.Status)))
     }
 
     fmt.Printf("%+v\n", xmlJ)
     return &xmlJ.Job, nil
 }
 
-func (api *Api) SendKeepalive(job *common.Job) error {
+// A function to call periodically with details on current progress. Also doubles as a session keepalive.
+// Returns duration until next report is required.
+func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
 
-	// TODO: get values for job in a thread locking context here
+    // TODO: get values for job in a thread locking context here
+    endpoint := api.endpoints["keepmealive"]
+    if time.Since(api.lastRequest) > endpoint.Timeout * 0.75 {
 
-	v := url.Values{}
-	v.Set("job", fmt.Sprintf("%d", job.Id))
-	v.Set("frame", fmt.Sprintf("%d", job.Frame))
-	if !su.IsEmpty("") {
-		v.Set("extras", job.Extras)
-	}
-	// TODO
-	// if job.Renderer != nil {
-	// 	v.Set("rendertime", job.Renderer.ElapsedDuration)
-	// 	v.Set("remainingtime", job.Renderer.RemainingDuration)
-	// }
+        v := url.Values{}
+        v.Set("job", fmt.Sprintf("%d", job.Id))
+        v.Set("frame", fmt.Sprintf("%d", job.Frame))
+        if !su.IsEmpty("") {
+            v.Set("extras", job.Extras)
+        }
+        if job.Renderer != nil {
+            v.Set("rendertime", job.Renderer.ElapsedDuration)
+            v.Set("remainingtime", job.Renderer.RemainingDuration)
+        }
 
-	url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["keepmealive"].Location, v.Encode())
-	fmt.Println("Requesting:", url)
-	resp, err := api.client.Get(url)
-	if err != nil {
-		fmt.Println("Request failed")
-		return err
-	}
-	defer resp.Body.Close()
-	api.lastRequest = time.Now()
-    decoder := xml.NewDecoder(resp.Body)
+        url := fmt.Sprintf("%s/%s?%s", api.Server, endpoint.Location, v.Encode())
+        fmt.Println("Requesting:", url)
+        resp, err := api.client.Get(url)
+        if err != nil {
+            fmt.Println("Request failed")
+            return err
+        }
+        defer resp.Body.Close()
+        api.lastRequest = time.Now()
+        decoder := xml.NewDecoder(resp.Body)
 
-    var xmlK xmlKeepalive
-    if err := decoder.Decode(&xmlK); err != nil {
-    	fmt.Println("Decode failed")
-    	return err
+        var xmlK xmlKeepalive
+        if err := decoder.Decode(&xmlK); err != nil {
+            fmt.Println("Decode failed")
+            return err
+        }
+
+        if xmlK.Status == common.KEEPMEALIVE_STOP_RENDERING {
+            log.Println("Server::keeepmealive server asked to kill local render process")
+            job.Cancel()
+        }
     }
-
-    if xmlK.Status == common.KEEPMEALIVE_STOP_RENDERING {
-    	log.Println("Server::keeepmealive server asked to kill local render process")
-    	job.Cancel()
-    }
-
     return nil
 }

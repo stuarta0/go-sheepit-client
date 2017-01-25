@@ -2,6 +2,8 @@ package client
 
 import (
     "errors"
+    "fmt"
+    "time"
 
     "github.com/stuarta0/go-sheepit-client/common"
     "github.com/stuarta0/go-sheepit-client/storage"
@@ -44,9 +46,9 @@ func (c *Client) Run() error {
     var currentJob common.Job
     go func() {
         for {
-            if currentJob.Id != 0 {
-                server.SendKeepalive(&currentJob)
-            }
+            timeout, _ := server.ReportProgress(&currentJob)
+            // report progress will let us know when it needs to be called again
+            time.Sleep(timeout)
         }
     }()
 

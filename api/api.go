@@ -17,7 +17,7 @@ import (
 
 type endpoint struct {
     Location string
-    Timeout int
+    Timeout time.Duration
 }
 
 type xmlRequest struct {
@@ -118,7 +118,7 @@ func New(c common.Configuration) (*Api, error) {
     // convert XML representation to simpler data structure
     m := make(map[string]endpoint)
     for _, r := range xmlC.Requests {
-        req := endpoint{Location:r.Path, Timeout:r.MaxPeriod}
+        req := endpoint{Location:r.Path, Timeout:time.Duration(r.MaxPeriod) * time.Second}
         m[r.Type] = req
     }
     api.endpoints = m
@@ -189,8 +189,10 @@ func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
 
     // TODO: get values for job in a thread locking context here
     endpoint := api.endpoints["keepmealive"]
-    if time.Since(api.lastRequest) > endpoint.Timeout * 0.75 {
+    safeTimeout := endpoint.Timeout * 4 / 5 // report within 80% of original timeout
 
+    // if within 25% of timeout expiring, send keepalive
+    if time.Since(api.lastRequest) >= endpoint.Timeout * 3 / 4 {
         v := url.Values{}
         v.Set("job", fmt.Sprintf("%d", job.Id))
         v.Set("frame", fmt.Sprintf("%d", job.Frame))
@@ -198,16 +200,23 @@ func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
             v.Set("extras", job.Extras)
         }
         if job.Renderer != nil {
-            v.Set("rendertime", job.Renderer.ElapsedDuration)
-            v.Set("remainingtime", job.Renderer.RemainingDuration)
+            v.Set("rendertime", fmt.Sprintf("%d", job.Renderer.ElapsedDuration.Seconds()))
+            v.Set("remainingtime", fmt.Sprintf("%d", job.Renderer.RemainingDuration.Seconds()))
         }
 
         url := fmt.Sprintf("%s/%s?%s", api.Server, endpoint.Location, v.Encode())
-        fmt.Println("Requesting:", url)
         resp, err := api.client.Get(url)
         if err != nil {
-            fmt.Println("Request failed")
-            return err
+            // report in half the time remaining
+            // e.g. if keepalive timeout is 15 minutes, 
+            //    the first call will be at 75% or 11:15, 
+            //    then on failure, 50% of remaining time after that: 13:07, 14:04, 14:32 until duration < 20sec
+            nextReport := (endpoint.Timeout - time.Since(api.lastRequest)) / 2
+            if nextReport >= time.Second * 20 {
+                return nextReport, err
+            } else {
+                return safeTimeout, err
+            }
         }
         defer resp.Body.Close()
         api.lastRequest = time.Now()
@@ -215,14 +224,14 @@ func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
 
         var xmlK xmlKeepalive
         if err := decoder.Decode(&xmlK); err != nil {
-            fmt.Println("Decode failed")
-            return err
+            return safeTimeout, err
         }
 
         if xmlK.Status == common.KEEPMEALIVE_STOP_RENDERING {
             log.Println("Server::keeepmealive server asked to kill local render process")
             job.Cancel()
         }
-    }
-    return nil
+    } 
+
+    return safeTimeout, nil
 }

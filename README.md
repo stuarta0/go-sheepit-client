@@ -18,7 +18,7 @@ Feature-parity with the official Java client is a goal of this project. The same
 
 ## Compilation
 
-    go get github.com/stuarta0/go-sheepit-client
+    go get github.com/stuarta0/go-sheepit-client/...
 
 ## Usage
 

@@ -2,7 +2,10 @@ package client
 
 import (
     "errors"
-    //"fmt"
+    "fmt"
+    "log"
+    "os"
+    "path"
     "time"
 
     "github.com/stuarta0/go-sheepit-client/common"
@@ -43,10 +46,10 @@ func (c *Client) Run() error {
 
     // server.start() - server class inherits from Thread, calls run() which calls stayAlive() which loops indefinitely sleeping every minute until keepalive exceeded, then stats are sent and server can request current job be terminated
     // starts anonymous func as Thread to continually check for finished job to send
-    var currentJob common.Job
+    var job common.Job
     go func() {
         for {
-            timeout, _ := server.ReportProgress(&currentJob)
+            timeout, _ := server.ReportProgress(&job)
             // report progress will let us know when it needs to be called again
             time.Sleep(timeout)
         }
@@ -61,11 +64,11 @@ func (c *Client) Run() error {
         // look up error code from jobrequest.prop['status'], if != 0, error (see Errors for full list of server error codes)
         // get stats and ensure all required attributes are present for job/renderer
         // return new Job
-    job, err2 := server.RequestJob(c.Configuration)
+    newJob, err2 := server.RequestJob(c.Configuration)
     if err2 != nil {
         return err2
     }
-    currentJob = *job
+    job = *newJob
 
     // lots of exception handling for various states, if job null then sleep 15 minutes
     // now work(job)
@@ -77,6 +80,24 @@ func (c *Client) Run() error {
             // os "freebsd": "rend.exe"
     // download scene from config['download-archive']?type=job&job=<job.id> 
         // to working directory\sceneMD5.zip if ZIP doesn't already exist (+MD5 check after download), extract to working directory\sceneMD5\job['path'] if sceneMD5 directory doesn't exist
+    rendererPath := path.Join(c.Configuration.StorageDir, fmt.Sprintf("%s.zip", job.Renderer.ArchiveMd5))
+    if _, err := os.Stat(rendererPath); err != nil {
+        log.Println("Downloading renderer", job.Renderer.ArchiveMd5)
+        server.DownloadRenderer(&job, rendererPath)
+    } else {
+        log.Println("Reusing cached renderer", job.Renderer.ArchiveMd5)
+    }
+
+    projectPath := path.Join(c.Configuration.ProjectDir, fmt.Sprintf("%s.zip", job.ArchiveMd5))
+    if _, err := os.Stat(projectPath); err != nil {
+        log.Println("Downloading project", job.ArchiveMd5)
+        server.DownloadProject(&job, projectPath)
+    } else {
+        log.Println("Reusing cached project", job.Renderer.ArchiveMd5)
+    }
+
+
+
     // job.render() -
         // String core_script = "import bpy\n" + "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + "bpy.context.scene.cycles.device = \"%s\"\n" + "bpy.context.user_preferences.system.compute_device = \"%s\"\n";
         // if using GPU and has GPU: core_script % ("CUDA", "GPU", gpu.CudaName())

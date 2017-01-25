@@ -7,7 +7,7 @@ import (
 )
 
 type Renderer struct {
-    Md5 string          `xml:"md5,attr"`
+    ArchiveMd5 string   `xml:"md5,attr"`
     Command string      `xml:"commandline,attr"`
     UpdateMethod string `xml:"update_method,attr"`
 

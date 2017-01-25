@@ -4,10 +4,12 @@ import (
     "encoding/xml"
     "errors"
     "fmt"
+    "io"
     "log"
     "net/http"
     "net/http/cookiejar"
     "net/url"
+    "os"
     "time"
 
     "github.com/stuarta0/go-sheepit-client/common"
@@ -234,4 +236,35 @@ func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
     } 
 
     return safeTimeout, nil
+}
+
+func (api *Api) DownloadRenderer(job *common.Job, destination string) error {
+    return api.download(job.Id, "binary", destination)
+}
+
+func (api *Api) DownloadProject(job *common.Job, destination string) error {
+    return api.download(job.Id, "job", destination)
+}
+
+func (api *Api) download(jobId int, typeId string, destination string) error {
+
+    out, err := os.Create(destination)
+    if err != nil {
+        return err
+    }
+    defer out.Close()
+
+    v := url.Values{}
+    v.Set("job", fmt.Sprintf("%d", jobId))
+    v.Set("type", typeId)
+    url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["download-archive"].Location, v.Encode(), destination)
+    resp, err := api.client.Get(url)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    // copy max 32kb at a time
+    _, err = io.Copy(out, resp.Body)
+    return err
 }

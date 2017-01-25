@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 
 	"github.com/stuarta0/go-sheepit-client/common"
@@ -70,6 +71,10 @@ type xmlKeepalive struct {
 	Status int `xml:"status,attr"`
 }
 
+
+var client http.Client
+
+
 // /server/config.php
 //
 // <?xml version="1.0" encoding="utf-8" ?>
@@ -83,6 +88,12 @@ type xmlKeepalive struct {
 //     <request type="last-render-frame" path="/ajax.php?action=webclient_get_last_render_frame_ui&amp;type=raw" />
 // </config>
 func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
+	if jar, err := cookiejar.New(nil); err == nil {
+		client = http.Client{Jar: jar}
+	} else {
+		return nil, errors.New("GetEndpoints couldn't store cookies")
+	}
+
 	cpu := hardware.CpuStat()
 	v := url.Values{}
 	v.Set("login", c.Login)
@@ -103,7 +114,7 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 	}
 
 	url := fmt.Sprintf("%s/server/config.php?%s", c.Server, v.Encode())
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -163,8 +174,7 @@ func RequestJob(endpoint string, c common.Configuration) (*common.Job, error) {
 	}
 
 	url := fmt.Sprintf("%s/%s?%s", c.Server, endpoint, v.Encode())
-	fmt.Println("Requesting:", url)
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		fmt.Println("Request failed")
 		return nil, err
@@ -184,7 +194,7 @@ func RequestJob(endpoint string, c common.Configuration) (*common.Job, error) {
 
     // TODO: massage data
     fmt.Printf("%+v\n", xmlJ)
-    return nil, nil
+    return nil, errors.New("RequestJob TBA")
 }
 
 func SendKeepalive(endpoint string, c common.Configuration, job *common.Job, terminate chan<- int) error {
@@ -205,7 +215,7 @@ func SendKeepalive(endpoint string, c common.Configuration, job *common.Job, ter
 
 	url := fmt.Sprintf("%s/%s?%s", c.Server, endpoint, v.Encode())
 	fmt.Println("Requesting:", url)
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		fmt.Println("Request failed")
 		return err

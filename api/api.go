@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"time"
 
 	"github.com/stuarta0/go-sheepit-client/common"
 	"github.com/stuarta0/go-sheepit-client/hardware"
@@ -39,31 +40,10 @@ type xmlStats struct {
 	ConnectedMachines int `xml:"connected_machine,attr"`
 }
 
-type xmlRenderer struct {
-	Md5 string          `xml:"md5,attr"`
-	Command string      `xml:"commandline,attr"`
-	UpdateMethod string `xml:"update_method,attr"`
-}
-
-type xmlJob struct {
-	Id int                 `xml:"id,attr"`
-	UseGpu bool            `xml:"use_gpu,attr"`
-	ArchiveMd5 string      `xml:"archive_md5,attr"`
-	Path string            `xml:"path,attr"`
-	Frame int              `xml:"frame,attr"`
-	SynchronousUpload bool `xml:"synchronous_upload,attr"`
-	Extras string          `xml:"extras,attr"`
-	Name string            `xml:"name,attr"`
-	Password string        `xml:"password,attr"`
-
-	Renderer xmlRenderer   `xml:"renderer"`
-	Script string          `xml:"script"`
-}
-
 type xmlJobRequest struct {
 	Status int `xml:"status,attr"`
 	Stats xmlStats `xml:"stats"`
-	Job xmlJob `xml:"job"`
+	Job common.Job `xml:"job"`
 }
 
 type xmlKeepalive struct {
@@ -74,7 +54,7 @@ type Api struct {
 	Server string
 	client http.Client
 	endpoints map[string]endpoint
-	//lastRequest time
+	lastRequest time.Time
 }
 
 
@@ -123,6 +103,7 @@ func New(c common.Configuration) (*Api, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	api.lastRequest = time.Now()
     decoder := xml.NewDecoder(resp.Body)
 
     var xmlC xmlConfig
@@ -185,6 +166,7 @@ func (api *Api) RequestJob(c common.Configuration) (*common.Job, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	api.lastRequest = time.Now()
     decoder := xml.NewDecoder(resp.Body)
 
     var xmlJ xmlJobRequest
@@ -197,9 +179,8 @@ func (api *Api) RequestJob(c common.Configuration) (*common.Job, error) {
     	return nil, errors.New(fmt.Sprintf("SheepIt Server Error Code %d", xmlJ.Status)) // errors.New(common.ErrorAsString(common.ServerCodeToError(xmlJ.Status)))
     }
 
-    // TODO: massage data
     fmt.Printf("%+v\n", xmlJ)
-    return nil, errors.New("RequestJob TBA")
+    return &xmlJ.Job, nil
 }
 
 func (api *Api) SendKeepalive(job *common.Job) error {
@@ -226,6 +207,7 @@ func (api *Api) SendKeepalive(job *common.Job) error {
 		return err
 	}
 	defer resp.Body.Close()
+	api.lastRequest = time.Now()
     decoder := xml.NewDecoder(resp.Body)
 
     var xmlK xmlKeepalive

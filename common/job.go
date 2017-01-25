@@ -16,7 +16,7 @@ type Job struct {
 	Name string            `xml:"name,attr"`
 	Password string        `xml:"password,attr"`
 
-	//Renderer xmlRenderer   `xml:"renderer"`
+	Renderer Renderer      `xml:"renderer"`
 	Script string          `xml:"script"`
 }
 

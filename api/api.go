@@ -14,10 +14,9 @@ import (
 	su "github.com/stuarta0/go-sheepit-client/stringutils"
 )
 
-
-type Endpoint struct {
+type endpoint struct {
 	Location string
-	MaxPeriod int
+	Timeout int
 }
 
 type xmlRequest struct {
@@ -71,8 +70,12 @@ type xmlKeepalive struct {
 	Status int `xml:"status,attr"`
 }
 
-
-var client http.Client
+type Api struct {
+	Server string
+	client http.Client
+	endpoints map[string]endpoint
+	//lastRequest time
+}
 
 
 // /server/config.php
@@ -87,9 +90,10 @@ var client http.Client
 //     <request type="logout" path="/account.php?mode=logout&amp;worker=1" />
 //     <request type="last-render-frame" path="/ajax.php?action=webclient_get_last_render_frame_ui&amp;type=raw" />
 // </config>
-func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
+func New(c common.Configuration) (*Api, error) {
+	api := Api{Server:c.Server}
 	if jar, err := cookiejar.New(nil); err == nil {
-		client = http.Client{Jar: jar}
+		api.client = http.Client{Jar: jar}
 	} else {
 		return nil, errors.New("GetEndpoints couldn't store cookies")
 	}
@@ -113,8 +117,8 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
 	}
 
-	url := fmt.Sprintf("%s/server/config.php?%s", c.Server, v.Encode())
-	resp, err := client.Get(url)
+	url := fmt.Sprintf("%s/server/config.php?%s", api.Server, v.Encode())
+	resp, err := api.client.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -131,12 +135,13 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
     }
 
     // convert XML representation to simpler data structure
-    m := make(map[string]Endpoint)
+    m := make(map[string]endpoint)
     for _, r := range xmlC.Requests {
-    	req := Endpoint{Location:r.Path, MaxPeriod:r.MaxPeriod}
+    	req := endpoint{Location:r.Path, Timeout:r.MaxPeriod}
     	m[r.Type] = req
     }
-    return m, nil
+    api.endpoints = m
+    return &api, nil
 }
 
 // /server/request_job.php
@@ -163,7 +168,7 @@ func GetEndpoints(c common.Configuration) (map[string]Endpoint, error) {
 // </script>
 //     </job>
 // </jobrequest>
-func RequestJob(endpoint string, c common.Configuration) (*common.Job, error) {
+func (api *Api) RequestJob(c common.Configuration) (*common.Job, error) {
 	v := url.Values{}
 	v.Set("computemethod", fmt.Sprintf("%d", c.ComputeMethod))
 	if c.UseCores > 0  {
@@ -173,8 +178,8 @@ func RequestJob(endpoint string, c common.Configuration) (*common.Job, error) {
 		v.Set("cpu_cores", fmt.Sprintf("%d", cpu.TotalCores))
 	}
 
-	url := fmt.Sprintf("%s/%s?%s", c.Server, endpoint, v.Encode())
-	resp, err := client.Get(url)
+	url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["request-job"].Location, v.Encode())
+	resp, err := api.client.Get(url)
 	if err != nil {
 		fmt.Println("Request failed")
 		return nil, err
@@ -197,7 +202,7 @@ func RequestJob(endpoint string, c common.Configuration) (*common.Job, error) {
     return nil, errors.New("RequestJob TBA")
 }
 
-func SendKeepalive(endpoint string, c common.Configuration, job *common.Job, terminate chan<- int) error {
+func (api *Api) SendKeepalive(job *common.Job) error {
 
 	// TODO: get values for job in a thread locking context here
 
@@ -213,9 +218,9 @@ func SendKeepalive(endpoint string, c common.Configuration, job *common.Job, ter
 	// 	v.Set("remainingtime", job.Renderer.RemainingDuration)
 	// }
 
-	url := fmt.Sprintf("%s/%s?%s", c.Server, endpoint, v.Encode())
+	url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["keepmealive"].Location, v.Encode())
 	fmt.Println("Requesting:", url)
-	resp, err := client.Get(url)
+	resp, err := api.client.Get(url)
 	if err != nil {
 		fmt.Println("Request failed")
 		return err
@@ -231,10 +236,7 @@ func SendKeepalive(endpoint string, c common.Configuration, job *common.Job, ter
 
     if xmlK.Status == common.KEEPMEALIVE_STOP_RENDERING {
     	log.Println("Server::keeepmealive server asked to kill local render process")
- 		// this.client.getRenderingJob().setServerBlockJob(true);
-		// OS.getOS().kill(this.client.getRenderingJob().getProcessRender().getProcess());
-		// this.client.getRenderingJob().setAskForRendererKill(true);
-    	terminate <- job.Id
+    	job.Cancel()
     }
 
     return nil

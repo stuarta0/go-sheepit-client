@@ -34,7 +34,7 @@ func (c *Client) Run() error {
 		// http://blog.httpwatch.com/2009/02/20/how-secure-are-query-strings-over-https/ and https://blog.codinghorror.com/youre-probably-storing-passwords-incorrectly/
 		// get response which will be content-type: text/xml (see below for structure)
 		// store all the key/value pairs, and make keepalive = (int(max-period) - 120) * 1000 // 2mins of safety net apparently; *1000 is probably to convert to milliseconds for a timer
-	endpoints, err1 := api.GetEndpoints(c.Configuration)
+	server, err1 := api.New(c.Configuration)
 	if err1 != nil {
 		return err1
 	}
@@ -42,11 +42,9 @@ func (c *Client) Run() error {
 	// server.start() - server class inherits from Thread, calls run() which calls stayAlive() which loops indefinitely sleeping every minute until keepalive exceeded, then stats are sent and server can request current job be terminated
 	// starts anonymous func as Thread to continually check for finished job to send
 	var currentJob common.Job
-	terminate := make(chan int)
 	go func() {
-		endpoint := endpoints["keepmealive"]
 		if currentJob.Id != 0 {
-			api.SendKeepalive(endpoint.Location, c.Configuration, &currentJob, terminate)
+			server.SendKeepalive(&currentJob)
 		}
 	}()
 
@@ -59,7 +57,7 @@ func (c *Client) Run() error {
 		// look up error code from jobrequest.prop['status'], if != 0, error (see Errors for full list of server error codes)
 		// get stats and ensure all required attributes are present for job/renderer
 		// return new Job
-	job, err2 := api.RequestJob(endpoints["request-job"].Location, c.Configuration)
+	job, err2 := server.RequestJob(c.Configuration)
 	if err2 != nil {
 		return err2
 	}

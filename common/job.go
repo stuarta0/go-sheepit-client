@@ -23,3 +23,10 @@ type Job struct {
 func (j *Job) Render() {
 	fmt.Println("Job.Render()")
 }
+
+func (j *Job) Cancel() {
+	fmt.Println("Job.Cancel()")
+	// this.client.getRenderingJob().setServerBlockJob(true);
+	// OS.getOS().kill(this.client.getRenderingJob().getProcessRender().getProcess());
+	// this.client.getRenderingJob().setAskForRendererKill(true);
+}

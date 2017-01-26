@@ -1,15 +1,18 @@
 package api
 
 import (
+    "crypto/md5"
     "encoding/xml"
     "errors"
     "fmt"
     "io"
+    "io/ioutil"
     "log"
     "net/http"
     "net/http/cookiejar"
     "net/url"
     "os"
+    "reflect"
     "time"
 
     "github.com/stuarta0/go-sheepit-client/common"
@@ -249,7 +252,7 @@ func (api *Api) DownloadArchive(job *common.Job, archive common.FileArchive) err
 
     // type assertion for GET params
     typeId := "job"
-    if _, ok := archive.(common.Renderer); ok {
+    if reflect.TypeOf(archive) == reflect.TypeOf((*common.Renderer)(nil)) { //_, ok := archive.(common.Renderer); ok {
         typeId = "binary"
     }
 
@@ -264,6 +267,19 @@ func (api *Api) DownloadArchive(job *common.Job, archive common.FileArchive) err
     defer resp.Body.Close()
 
     // copy max 32kb at a time
-    _, err = io.Copy(out, resp.Body)
-    return err
+    if _, err = io.Copy(out, resp.Body); err != nil {
+        return err
+    }
+
+    // verify MD5
+    if contents, readErr := ioutil.ReadFile(archive.GetArchivePath()); readErr == nil {
+        if hash := fmt.Sprintf("%x", md5.Sum(contents)); hash != archive.GetExpectedHash() {
+            os.Remove(archive.GetArchivePath())
+            return errors.New(fmt.Sprintf("Downloaded archive for %s %s does not match actual hash %s", typeId, archive.GetExpectedHash(), hash))
+        } else {
+            log.Printf("Downloaded %s %s successfully", typeId, archive.GetExpectedHash())
+        }
+    }
+
+    return nil
 }

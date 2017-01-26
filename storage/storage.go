@@ -48,7 +48,6 @@ func cleanDirectory(path string) error {
                 if filepath.Ext(fpath) == ".zip" {
                     if contents, err := ioutil.ReadFile(fpath); err == nil {
                         if hash := fmt.Sprintf("%x", md5.Sum(contents)); hash != strings.TrimSuffix(file.Name(), ".zip") {
-                            fmt.Println("does not match hash", hash)
                             os.Remove(fpath)
                         }
                     }

@@ -84,14 +84,20 @@ func (c *Client) Run() error {
         // to working directory\sceneMD5.zip if ZIP doesn't already exist (+MD5 check after download), extract to working directory\sceneMD5\job['path'] if sceneMD5 directory doesn't exist
     if _, err := os.Stat(job.Renderer.GetArchivePath()); err != nil {
         log.Println("Downloading renderer", job.Renderer.ArchiveMd5)
-        server.DownloadArchive(&job, job.Renderer)
+        err = server.DownloadArchive(&job, job.Renderer)
+        if err != nil {
+            return err
+        }
     } else {
         log.Println("Reusing cached renderer", job.Renderer.ArchiveMd5)
     }
 
     if _, err := os.Stat(job.GetArchivePath()); err != nil {
         log.Println("Downloading project", job.ArchiveMd5)
-        server.DownloadArchive(&job, job)
+        err = server.DownloadArchive(&job, job)
+        if err != nil {
+            return err
+        }
     } else {
         log.Println("Reusing cached project", job.ArchiveMd5)
     }

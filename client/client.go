@@ -65,10 +65,12 @@ func (c *Client) Run() error {
         // look up error code from jobrequest.prop['status'], if != 0, error (see Errors for full list of server error codes)
         // get stats and ensure all required attributes are present for job/renderer
         // return new Job
+    log.Println("Requesting next job")
     newJob, err2 := server.RequestJob(c.Configuration)
     if err2 != nil {
         return err2
     }
+    log.Printf("Rendering project \"%s\"\n", newJob.Name)
     job = *newJob
     job.RootPath = c.Configuration.ProjectDir
     job.Renderer.RootPath = c.Configuration.StorageDir
@@ -95,7 +97,7 @@ func (c *Client) Run() error {
     }
 
     // get project files
-    if err := prepareArchive(server, &job, job, "job"); err != nil {
+    if err := prepareArchive(server, &job, job, "project"); err != nil {
         return err
     }
 
@@ -122,7 +124,9 @@ func (c *Client) Run() error {
         // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
         // delete scene dir
         // return image file path
-    job.Render(cpu)
+    if err := job.Render(cpu); err != nil {
+        return err
+    }
 
 
     // if !simultaneous upload, POST with content-type: multipart/form-data;boundary=***232404jkg4220957934FW**
@@ -160,7 +164,7 @@ func prepareArchive(server *api.Api, job *common.Job, archive common.FileArchive
 
     if _, err := os.Stat(archive.GetContentPath()); err != nil {
         // file hasn't been extracted previously so extract it
-        log.Println("Extracting archive...")
+        log.Println("Extracting", name)
         if err := storage.Extract(archive.GetArchivePath(), archive.GetContentPath()); err != nil { 
             return err
         }

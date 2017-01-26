@@ -4,7 +4,11 @@ import (
     //"errors"
     "fmt"
     "io/ioutil"
+    //"log"
+    "os/exec"
     "path"
+    "regexp"
+    "strings"
 
     "github.com/stuarta0/go-sheepit-client/hardware"
 )
@@ -38,7 +42,7 @@ func (j Job) GetContentPath() string {
 }
 
 func (j *Job) Render(device hardware.Computer) error {
-    fmt.Println("Job.Render()")
+    fmt.Println("Rendering")
 
     // String core_script = "import bpy\n" + "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + "bpy.context.scene.cycles.device = \"%s\"\n" + "bpy.context.user_preferences.system.compute_device = \"%s\"\n";
     // if using GPU and has GPU: core_script % ("CUDA", "GPU", gpu.CudaName())
@@ -50,11 +54,13 @@ func (j *Job) Render(device hardware.Computer) error {
         "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + 
         "bpy.context.scene.cycles.device = \"%s\"\n" +
         "bpy.context.user_preferences.system.compute_device = \"%s\"\n" +
-        "bpy.context.scene.render.tile_x = %[4]d\n" + 
-        "bpy.context.scene.render.tile_y = %[4]d\n", 
+        "bpy.context.scene.render.tile_x = %[5]d\n" + 
+        "bpy.context.scene.render.tile_y = %[5]d\n", 
         j.Script, device.GetComputeDeviceType(), device.GetDeviceName(), device.GetComputeDeviceName(), device.GetOptimalTileSize())
 
-    if err := ioutil.WriteFile(path.Join(j.GetContentPath(), "script.py"), ([]byte)(script), 0755); err != nil {
+    // minor difference - script added to content path (will be cleaned up when job directory is deleted)
+    scriptPath := path.Join(j.GetContentPath(), "script.py")
+    if err := ioutil.WriteFile(scriptPath, ([]byte)(script), 0755); err != nil {
         return err
     }
 
@@ -64,6 +70,29 @@ func (j *Job) Render(device hardware.Computer) error {
         // ".e": "$rendererpath" + "-t $cpucores" if cpucores specified by user (default all cores)
         // ".o": "$workingdir\$job.id_" (i.e. frame render path; blender will add frame number and extension)
         // ".f": "$job.frame"
+
+    r := regexp.MustCompile(`(?:^|\s)(\.[ecof])(?:\s|$)`)
+    cmd := r.ReplaceAllStringFunc(j.Renderer.Command, func (match string) string {
+        repl := match
+        switch strings.TrimSpace(match) {
+        case ".e": // blender executable (replaced when executing command)
+            repl = ""
+        case ".c": // .blend path and python script
+            repl = fmt.Sprintf("%s -P %s", path.Join(j.GetContentPath(), j.Path), scriptPath)
+        case ".o": // output image
+            repl = path.Join(j.RootPath, fmt.Sprintf("%d_", j.Id))
+        case ".f": // frame #
+            repl = fmt.Sprintf("%d", j.Frame)
+        }
+        return fmt.Sprintf(" %s ", repl)
+    })
+
+    args := strings.Split(strings.TrimSpace(cmd), " ")
+    renderCmd := exec.Command(path.Join(j.Renderer.GetContentPath(), hardware.RendererPath()), args...)
+    if err := renderCmd.Run(); err != nil {
+        return err
+    }
+
     // set env vars:
         // BLENDER_USER_CONFIG: working directory
         // CORES: config.cpuCores

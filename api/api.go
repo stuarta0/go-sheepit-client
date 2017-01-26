@@ -183,8 +183,7 @@ func (api *Api) RequestJob(c common.Configuration) (*common.Job, error) {
     if xmlJ.Status != 0 {
         return nil, errors.New(fmt.Sprintf("SheepIt Server Error Code %d", xmlJ.Status)) // errors.New(common.ErrorAsString(common.ServerCodeToError(xmlJ.Status)))
     }
-
-    fmt.Printf("%+v\n", xmlJ)
+    
     return &xmlJ.Job, nil
 }
 

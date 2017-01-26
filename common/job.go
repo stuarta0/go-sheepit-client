@@ -3,12 +3,13 @@ package common
 import (
     //"errors"
     "fmt"
+    "path"
 )
 
 type Job struct {
+    ArchiveMd5 string      `xml:"archive_md5,attr"`
     Id int                 `xml:"id,attr"`
     UseGpu bool            `xml:"use_gpu,attr"`
-    ArchiveMd5 string      `xml:"archive_md5,attr"`
     Path string            `xml:"path,attr"`
     Frame int              `xml:"frame,attr"`
     SynchronousUpload bool `xml:"synchronous_upload,attr"`
@@ -18,7 +19,21 @@ type Job struct {
 
     Renderer *Renderer     `xml:"renderer"`
     Script string          `xml:"script"`
+
+    RootPath string
 }
+
+// FileArchive interface
+func (j Job) GetExpectedHash() string {
+    return j.ArchiveMd5
+}
+func (j Job) GetArchivePath() string {
+    return path.Join(j.RootPath, fmt.Sprintf("%s.zip", j.ArchiveMd5))
+}
+func (j Job) GetContentPath() string {
+    return path.Join(j.RootPath, j.ArchiveMd5)
+}
+
 
 func (j *Job) Render() {
     fmt.Println("Job.Render()")

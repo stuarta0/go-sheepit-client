@@ -238,26 +238,25 @@ func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
     return safeTimeout, nil
 }
 
-func (api *Api) DownloadRenderer(job *common.Job, destination string) error {
-    return api.download(job.Id, "binary", destination)
-}
+func (api *Api) DownloadArchive(job *common.Job, archive common.FileArchive) error {
 
-func (api *Api) DownloadProject(job *common.Job, destination string) error {
-    return api.download(job.Id, "job", destination)
-}
-
-func (api *Api) download(jobId int, typeId string, destination string) error {
-
-    out, err := os.Create(destination)
+    // create target file
+    out, err := os.Create(archive.GetArchivePath())
     if err != nil {
         return err
     }
     defer out.Close()
 
+    // type assertion for GET params
+    typeId := "job"
+    if _, ok := archive.(common.Renderer); ok {
+        typeId = "binary"
+    }
+
     v := url.Values{}
-    v.Set("job", fmt.Sprintf("%d", jobId))
+    v.Set("job", fmt.Sprintf("%d", job.Id))
     v.Set("type", typeId)
-    url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["download-archive"].Location, v.Encode(), destination)
+    url := fmt.Sprintf("%s/%s?%s", api.Server, api.endpoints["download-archive"].Location, v.Encode())
     resp, err := api.client.Get(url)
     if err != nil {
         return err

@@ -2,10 +2,10 @@ package client
 
 import (
     "errors"
-    "fmt"
+    //"fmt"
     "log"
     "os"
-    "path"
+    //"path"
     "time"
 
     "github.com/stuarta0/go-sheepit-client/common"
@@ -69,6 +69,8 @@ func (c *Client) Run() error {
         return err2
     }
     job = *newJob
+    job.RootPath = c.Configuration.ProjectDir
+    job.Renderer.RootPath = c.Configuration.StorageDir
 
     // lots of exception handling for various states, if job null then sleep 15 minutes
     // now work(job)
@@ -80,20 +82,18 @@ func (c *Client) Run() error {
             // os "freebsd": "rend.exe"
     // download scene from config['download-archive']?type=job&job=<job.id> 
         // to working directory\sceneMD5.zip if ZIP doesn't already exist (+MD5 check after download), extract to working directory\sceneMD5\job['path'] if sceneMD5 directory doesn't exist
-    rendererPath := path.Join(c.Configuration.StorageDir, fmt.Sprintf("%s.zip", job.Renderer.ArchiveMd5))
-    if _, err := os.Stat(rendererPath); err != nil {
+    if _, err := os.Stat(job.Renderer.GetArchivePath()); err != nil {
         log.Println("Downloading renderer", job.Renderer.ArchiveMd5)
-        server.DownloadRenderer(&job, rendererPath)
+        server.DownloadArchive(&job, job.Renderer)
     } else {
         log.Println("Reusing cached renderer", job.Renderer.ArchiveMd5)
     }
 
-    projectPath := path.Join(c.Configuration.ProjectDir, fmt.Sprintf("%s.zip", job.ArchiveMd5))
-    if _, err := os.Stat(projectPath); err != nil {
+    if _, err := os.Stat(job.GetArchivePath()); err != nil {
         log.Println("Downloading project", job.ArchiveMd5)
-        server.DownloadProject(&job, projectPath)
+        server.DownloadArchive(&job, job)
     } else {
-        log.Println("Reusing cached project", job.Renderer.ArchiveMd5)
+        log.Println("Reusing cached project", job.ArchiveMd5)
     }
 
 

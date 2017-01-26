@@ -93,12 +93,15 @@ func main() {
 
     // run client to manage rendering jobs requested from server
     client := client.Client{Configuration:config}
-    if e := client.Run(); e != nil {
-        panic(fmt.Sprintf("Client.Run() raised error: %s", e))
-    }
+    go func() {
+        if e := client.Run(); e != nil {
+            panic(fmt.Sprintf("Client.Run() raised error: %s", e))
+        }
+        done <- true
+    }()
 
     // wait for exit signal
-    //<-done
+    <-done
 }
 
 func Dump(obj interface{}) {

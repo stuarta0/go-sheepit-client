@@ -44,7 +44,8 @@ func (c *Client) Run() error {
         return err1
     }
 
-    // server.start() - server class inherits from Thread, calls run() which calls stayAlive() which loops indefinitely sleeping every minute until keepalive exceeded, then stats are sent and server can request current job be terminated
+    // server.start() - server class inherits from Thread, calls run() which calls stayAlive() which loops indefinitely sleeping every minute until keepalive exceeded, then 
+    // stats are sent and server can request current job be terminated
     // starts anonymous func as Thread to continually check for finished job to send
     var job common.Job
     go func() {
@@ -121,6 +122,9 @@ func (c *Client) Run() error {
         // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
         // delete scene dir
         // return image file path
+    job.Render(cpu)
+
+
     // if !simultaneous upload, POST with content-type: multipart/form-data;boundary=***232404jkg4220957934FW**
         // write: --***232404jkg4220957934FW**\r\n
         // write: Content-Disposition: form-data; name="file"; filename="$imagepath"\r\n

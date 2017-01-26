@@ -45,13 +45,14 @@ func (j *Job) Render(device hardware.Computer) error {
     // else: core_script % ("NONE", "CPU", "CPU")
     // core_script += String.format("bpy.context.scene.render.tile_x = %1$d\nbpy.context.scene.render.tile_y = %1$d\n", getTileSize());
     script := fmt.Sprintf(
+        "%s\n" +
         "import bpy\n" + 
         "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + 
         "bpy.context.scene.cycles.device = \"%s\"\n" +
         "bpy.context.user_preferences.system.compute_device = \"%s\"\n" +
         "bpy.context.scene.render.tile_x = %[4]d\n" + 
         "bpy.context.scene.render.tile_y = %[4]d\n", 
-        device.GetComputeDeviceType(), device.GetDeviceName(), device.GetComputeDeviceName(), device.GetOptimalTileSize())
+        j.Script, device.GetComputeDeviceType(), device.GetDeviceName(), device.GetComputeDeviceName(), device.GetOptimalTileSize())
 
     if err := ioutil.WriteFile(path.Join(j.GetContentPath(), "script.py"), ([]byte)(script), 0755); err != nil {
         return err

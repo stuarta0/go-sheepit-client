@@ -5,7 +5,7 @@ import (
     //"fmt"
     "log"
     "os"
-    //"path"
+    "path"
     "time"
 
     "github.com/stuarta0/go-sheepit-client/common"
@@ -82,26 +82,21 @@ func (c *Client) Run() error {
             // os "freebsd": "rend.exe"
     // download scene from config['download-archive']?type=job&job=<job.id> 
         // to working directory\sceneMD5.zip if ZIP doesn't already exist (+MD5 check after download), extract to working directory\sceneMD5\job['path'] if sceneMD5 directory doesn't exist
-    if _, err := os.Stat(job.Renderer.GetArchivePath()); err != nil {
-        log.Println("Downloading renderer", job.Renderer.ArchiveMd5)
-        err = server.DownloadArchive(&job, job.Renderer)
-        if err != nil {
-            return err
-        }
-    } else {
-        log.Println("Reusing cached renderer", job.Renderer.ArchiveMd5)
+
+    // get renderer
+    if err := prepareArchive(server, &job, job.Renderer, "renderer"); err != nil {
+        return err
+    }
+    // set execute flag on renderer - ignore errors
+    rendererExePath := path.Join(job.Renderer.GetContentPath(), hardware.RendererPath())
+    if fi, err := os.Stat(rendererExePath); err == nil {
+        os.Chmod(rendererExePath, fi.Mode()|100) // read(4) write(2) execute(1), set execute for owner
     }
 
-    if _, err := os.Stat(job.GetArchivePath()); err != nil {
-        log.Println("Downloading project", job.ArchiveMd5)
-        err = server.DownloadArchive(&job, job)
-        if err != nil {
-            return err
-        }
-    } else {
-        log.Println("Reusing cached project", job.ArchiveMd5)
+    // get project files
+    if err := prepareArchive(server, &job, job, "job"); err != nil {
+        return err
     }
-
 
 
     // job.render() -
@@ -136,6 +131,38 @@ func (c *Client) Run() error {
     // sleep for 4s before next job, then another 2.3s for send frame
     // loop for next job
 
+    return nil
+}
+
+// download or use cached file and extract
+func prepareArchive(server *api.Api, job *common.Job, archive common.FileArchive, name string) error {
+    if _, err := os.Stat(archive.GetArchivePath()); err != nil {
+        log.Println("Downloading", name, archive.GetExpectedHash())
+        attempts := 1
+        for attempts <= 5 && err != nil {
+            err = server.DownloadArchive(job, archive)
+            if err != nil {
+                attempts++
+                log.Printf("Failed to download archive. Retrying attempt %d/5...\n", attempts)
+            }
+        }
+
+        if err != nil {
+            return err
+        }
+    } else {
+        log.Println("Reusing cached", name, archive.GetExpectedHash())
+    }
+
+    if _, err := os.Stat(archive.GetContentPath()); err != nil {
+        // file hasn't been extracted previously so extract it
+        log.Println("Extracting archive...")
+        if err := storage.Extract(archive.GetArchivePath(), archive.GetContentPath()); err != nil { 
+            return err
+        }
+    }
+
+    // file downloaded and extracted successfully
     return nil
 }
 

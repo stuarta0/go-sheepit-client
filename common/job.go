@@ -59,7 +59,7 @@ func (j *Job) Render(device hardware.Computer) error {
         j.Script, device.GetComputeDeviceType(), device.GetDeviceName(), device.GetComputeDeviceName(), device.GetOptimalTileSize())
 
     // minor difference - script added to content path (will be cleaned up when job directory is deleted)
-    scriptPath := path.Join(j.GetContentPath(), "script.py")
+    scriptPath := path.Join(j.GetContentPath(), fmt.Sprintf("%d_script.py", j.Id))
     if err := ioutil.WriteFile(scriptPath, ([]byte)(script), 0755); err != nil {
         return err
     }

@@ -17,8 +17,8 @@ func RendererPath() string {
 }
 
 func CpuStat() *Cpu {
-    //cpu := Cpu{Family: "Intel", Name: "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz", Model: "i7-6700", Cores: 8, Architecture: "64bit"}
-    cpu := Cpu{Family: "family", Name: "name", Model: "model", TotalCores: 0, Architecture: "arch"}
+    //cpu := Cpu{Family: "6", Name: "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz", Model: "i7-6700", Cores: 8, Architecture: "64bit"}
+    cpu := Cpu{Family: "", Name: "", Model: "", TotalCores: 0, Architecture: "32bit"}
 
     // "Intel64 Family 6 Model 94 Stepping 3, GenuineIntel"
     env := os.Getenv("PROCESSOR_IDENTIFIER")

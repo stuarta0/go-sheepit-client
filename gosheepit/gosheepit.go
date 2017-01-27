@@ -55,7 +55,7 @@ func main() {
     // if we have a config file, use it's values for those that weren't provided
     // NOTE: the java client config file is incompatible - it needs to be reformatted to valid TOML (i.e. quoted values for strings)
     if _, err := os.Stat(*configPathPtr); err != nil {
-        fmt.Printf("Config file \"%s\" does not exist\n", *configPathPtr)
+        //fmt.Printf("Config file \"%s\" does not exist\n", *configPathPtr)
     } else {
         config2 := common.Configuration{}
         if _, err := toml.DecodeFile(*configPathPtr, &config2); err != nil {

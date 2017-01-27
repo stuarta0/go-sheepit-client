@@ -124,9 +124,11 @@ func (c *Client) Run() error {
         // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
         // delete scene dir
         // return image file path
-    if err := job.Render(cpu, c.Configuration); err != nil {
-        return err
+    outputPath, renderErr := job.Render(cpu, c.Configuration); 
+    if renderErr != nil {
+        return renderErr
     }
+    log.Println("Project rendered:", outputPath)
 
 
     // if !simultaneous upload, POST with content-type: multipart/form-data;boundary=***232404jkg4220957934FW**

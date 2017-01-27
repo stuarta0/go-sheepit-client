@@ -2,7 +2,7 @@ package common
 
 import (
     "bufio"
-    //"errors"
+    "errors"
     "fmt"
     "io/ioutil"
     "log"
@@ -10,6 +10,7 @@ import (
     "os"
     "os/exec"
     "path"
+    "path/filepath"
     "regexp"
     "strconv"
     "strings"
@@ -45,7 +46,7 @@ func (j Job) GetContentPath() string {
     return path.Join(j.RootPath, j.ArchiveMd5)
 }
 
-func (j *Job) Render(device hardware.Computer, config Configuration) error {
+func (j *Job) Render(device hardware.Computer, config Configuration) (string, error) {
     fmt.Println("Rendering")
 
     // set cores based on CPU capabilities or override
@@ -77,7 +78,7 @@ func (j *Job) Render(device hardware.Computer, config Configuration) error {
     // minor difference - script added to content path (will be cleaned up when job directory is deleted)
     scriptPath := path.Join(j.GetContentPath(), fmt.Sprintf("%d_script.py", j.Id))
     if err := ioutil.WriteFile(scriptPath, ([]byte)(script), 0755); err != nil {
-        return err
+        return "", err
     }
 
     // command = job['renderer.commandline']
@@ -124,11 +125,11 @@ func (j *Job) Render(device hardware.Computer, config Configuration) error {
     // output status, plus read line for blender error (see Job.detectError for all the string variations), returns (and deletes script file) if error
     renderOut, err := renderCmd.StdoutPipe()
     if err != nil {
-        return err
+        return "", err
     }
 
     if err := renderCmd.Start(); err != nil {
-        return err
+        return "", err
     }
 
     peakMemory := 0
@@ -148,14 +149,34 @@ func (j *Job) Render(device hardware.Computer, config Configuration) error {
     }
 
     if err := renderCmd.Wait(); err != nil {
-        return err
+        return "", err
     }
 
-    // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
+    // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$jobpath.crash.txt" if present then blender crashed (+delete file)
+    expectedName := fmt.Sprintf("%d_%04d", j.Id, j.Frame)
+    var outputPath, errorPath string
+    files, _ := ioutil.ReadDir(j.RootPath)
+    for _, file := range files {
+        filename := file.Name()
+        if filename[0:len(filename)-len(filepath.Ext(filename))] == expectedName {
+            outputPath = filepath.Join(j.RootPath, filename)
+        }
+        if filename == fmt.Sprintf("%s.crash.txt", j.Path) {
+            errorPath = filepath.Join(j.RootPath, filename)
+        }
+    }
+
+    if _, err := os.Stat(errorPath); err == nil {
+        return "", errors.New("Job::render crash file found => the renderer crashed")
+    }
+
+    if _, err := os.Stat(outputPath); err != nil {
+        return "", errors.New("Job::render no picture file found (after finished render (filename_without_extension " + expectedName + ")")
+    }
+
     // delete scene dir
     // return image file path
-
-    return nil
+    return outputPath, nil
 }
 
 func (j *Job) Cancel() {

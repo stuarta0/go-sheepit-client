@@ -30,6 +30,7 @@ func main() {
     flag.StringVar(&config.Extras, "extras", "", "Extras data push on the authentication request")
     //flag.StringVar(&config.UiType, "ui", "text", "Specify the user interface to use, only 'text' allowed.")
     flag.IntVar(&config.Priority, "priority", 19, "Set render process priority (19 lowest to -19 highest)")
+    flag.IntVar(&config.TileSize, "tile-size", -1, "Override the default tile size")
 
     //flag.BoolVar(&config., "verbose", false, "Display log") // --verbose, print_log
     //flag.BoolVar(&config., "version", false, "Display application version") // --version, versionHandler

@@ -48,9 +48,16 @@ func (j Job) GetContentPath() string {
 func (j *Job) Render(device hardware.Computer, config Configuration) error {
     fmt.Println("Rendering")
 
+    // set cores based on CPU capabilities or override
     useCores := hardware.CpuStat().TotalCores
     if config.UseCores > 0 {
         useCores = config.UseCores
+    }
+
+    // set tile size based on optimal size for given hardware, or using override
+    tileSize := device.GetOptimalTileSize()
+    if config.TileSize > 0 {
+        tileSize = config.TileSize
     }
 
     // String core_script = "import bpy\n" + "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + "bpy.context.scene.cycles.device = \"%s\"\n" + "bpy.context.user_preferences.system.compute_device = \"%s\"\n";
@@ -65,7 +72,7 @@ func (j *Job) Render(device hardware.Computer, config Configuration) error {
         "bpy.context.user_preferences.system.compute_device = \"%s\"\n" +
         "bpy.context.scene.render.tile_x = %[5]d\n" + 
         "bpy.context.scene.render.tile_y = %[5]d\n", 
-        j.Script, device.GetComputeDeviceType(), device.GetDeviceName(), device.GetComputeDeviceName(), device.GetOptimalTileSize())
+        j.Script, device.GetComputeDeviceType(), device.GetDeviceName(), device.GetComputeDeviceName(), tileSize)
 
     // minor difference - script added to content path (will be cleaned up when job directory is deleted)
     scriptPath := path.Join(j.GetContentPath(), fmt.Sprintf("%d_script.py", j.Id))

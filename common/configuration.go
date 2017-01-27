@@ -70,6 +70,8 @@ type Configuration struct {
 
 	// Process priority for rendering
 	Priority int
+
+	TileSize int `toml:"tile-size"`
 }
 
 // Given a string representation of the COMPUTE_ consts, convert to value
@@ -137,4 +139,5 @@ func (c *Configuration) Merge(other Configuration) {
 	if (su.IsEmpty(c.Extras) && !su.IsEmpty(other.Extras)) { c.Extras = other.Extras }
 	// uiType
 	if (c.Priority == 0 && other.Priority != 0) { c.Priority = other.Priority }
+	if (c.TileSize < 0 && other.TileSize > 0) { c.TileSize = other.TileSize }
 }

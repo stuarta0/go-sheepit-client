@@ -14,7 +14,7 @@ import (
 
 
 func CreateWorkingDirectory(path string) error {
-    if err := os.MkdirAll(path, os.ModeDir); err != nil {
+    if err := os.MkdirAll(path, 0755); err != nil {
         return err
     } else {
         //fmt.Println("created working directory", path)

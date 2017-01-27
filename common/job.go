@@ -1,14 +1,16 @@
 package common
 
 import (
+    "bufio"
     //"errors"
     "fmt"
     "io/ioutil"
-    //"log"
+    "log"
     "os"
     "os/exec"
     "path"
     "regexp"
+    "strconv"
     "strings"
 
     "github.com/stuarta0/go-sheepit-client/hardware"
@@ -104,12 +106,45 @@ func (j *Job) Render(device hardware.Computer, useCores int) error {
         fmt.Sprintf("BLENDER_USER_CONFIG=%s", j.RootPath),
         fmt.Sprintf("CORES=%d", useCores))
         //fmt.Sprintf("PRIORITY=%d"))
-    if err := renderCmd.Run(); err != nil {
+    
+    // read Stdin from process
+    // output status, plus read line for blender error (see Job.detectError for all the string variations), returns (and deletes script file) if error
+    renderOut, err := renderCmd.StdoutPipe()
+    if err != nil {
         return err
     }
 
-    // read Stdin from process
-    // output status, plus read line for blender error (see Job.detectError for all the string variations), returns (and deletes script file) if error
+    // renderErr, err := renderCmd.StderrPipe()
+    // if err != nil {
+    //     return err
+    // }
+
+    if err := renderCmd.Start(); err != nil {
+        return err
+    }
+
+    peakMemory := 0.0
+    scanner := bufio.NewScanner(renderOut)
+    for scanner.Scan() {
+        //log.Println(scanner.Text())
+
+        //[[peak 7.10] [peak 0.00]]
+        re := regexp.MustCompile(`peak\s(\d+\.\d+)([bkmgtpe])`)
+        res := re.FindAllStringSubmatch(strings.ToLower(scanner.Text()), -1)
+        if len(res) > 0 {
+            // TODO http://stackoverflow.com/a/3758880
+            memory, _ := strconv.ParseFloat(res[0][1], 64)
+            if memory > peakMemory {
+                peakMemory = memory
+                log.Printf("Peak Memory: %f", peakMemory)
+            }
+        }
+    }
+
+    if err := renderCmd.Wait(); err != nil {
+        return err
+    }
+
     // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
     // delete scene dir
     // return image file path

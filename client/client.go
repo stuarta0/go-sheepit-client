@@ -50,7 +50,7 @@ func (c *Client) Run() error {
     var job common.Job
     go func() {
         for {
-            timeout, _ := server.ReportProgress(&job)
+            timeout, _ := server.SendHeartbeat(&job)
             // report progress will let us know when it needs to be called again
             time.Sleep(timeout)
         }
@@ -124,7 +124,11 @@ func (c *Client) Run() error {
         // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
         // delete scene dir
         // return image file path
-    if err := job.Render(cpu); err != nil {
+    useCores := cpu.TotalCores
+    if c.Configuration.UseCores > 0 {
+        useCores = c.Configuration.UseCores
+    }
+    if err := job.Render(cpu, useCores); err != nil {
         return err
     }
 

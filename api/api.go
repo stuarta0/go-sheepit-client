@@ -189,7 +189,7 @@ func (api *Api) RequestJob(c common.Configuration) (*common.Job, error) {
 
 // A function to call periodically with details on current progress. Also doubles as a session keepalive.
 // Returns duration until next report is required.
-func (api *Api) ReportProgress(job *common.Job) (time.Duration, error) {
+func (api *Api) SendHeartbeat(job *common.Job) (time.Duration, error) {
 
     // TODO: get values for job in a thread locking context here
     endpoint := api.endpoints["keepmealive"]
@@ -279,6 +279,14 @@ func (api *Api) DownloadArchive(job *common.Job, archive common.FileArchive) err
             log.Printf("Downloaded %s %s successfully", typeId, archive.GetExpectedHash())
         }
     }
+
+    return nil
+}
+
+func (api *Api) UploadResult(job *common.Job) error {
+
+    // resp, err := http.PostForm("http://example.com/form",
+    // url.Values{"key": {"Value"}, "id": {"123"}})
 
     return nil
 }

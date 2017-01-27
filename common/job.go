@@ -5,6 +5,7 @@ import (
     "fmt"
     "io/ioutil"
     //"log"
+    "os"
     "os/exec"
     "path"
     "regexp"
@@ -41,7 +42,7 @@ func (j Job) GetContentPath() string {
     return path.Join(j.RootPath, j.ArchiveMd5)
 }
 
-func (j *Job) Render(device hardware.Computer) error {
+func (j *Job) Render(device hardware.Computer, useCores int) error {
     fmt.Println("Rendering")
 
     // String core_script = "import bpy\n" + "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + "bpy.context.scene.cycles.device = \"%s\"\n" + "bpy.context.user_preferences.system.compute_device = \"%s\"\n";
@@ -75,8 +76,12 @@ func (j *Job) Render(device hardware.Computer) error {
     cmd := r.ReplaceAllStringFunc(j.Renderer.Command, func (match string) string {
         repl := match
         switch strings.TrimSpace(match) {
-        case ".e": // blender executable (replaced when executing command)
-            repl = ""
+        case ".e": // blender executable (used with exec.Command)
+            if useCores > 0 {
+                repl = fmt.Sprintf("-t %d", useCores)
+            } else {
+                repl = ""
+            }
         case ".c": // .blend path and python script
             repl = fmt.Sprintf("%s -P %s", path.Join(j.GetContentPath(), j.Path), scriptPath)
         case ".o": // output image
@@ -87,18 +92,22 @@ func (j *Job) Render(device hardware.Computer) error {
         return fmt.Sprintf(" %s ", repl)
     })
 
-    args := strings.Split(strings.TrimSpace(cmd), " ")
-    renderCmd := exec.Command(path.Join(j.Renderer.GetContentPath(), hardware.RendererPath()), args...)
-    if err := renderCmd.Run(); err != nil {
-        return err
-    }
-
     // set env vars:
         // BLENDER_USER_CONFIG: working directory
         // CORES: config.cpuCores
         // PRIORITY: config.priority
     // process.setCoresUsed(config.cpuCores) - I get the impression limiting the CPU cores has been a problem since it's set everywhere
     // os.exec(process, env vars)
+    args := strings.Split(strings.TrimSpace(cmd), " ")
+    renderCmd := exec.Command(path.Join(j.Renderer.GetContentPath(), hardware.RendererPath()), args...)
+    renderCmd.Env = append(os.Environ(), 
+        fmt.Sprintf("BLENDER_USER_CONFIG=%s", j.RootPath),
+        fmt.Sprintf("CORES=%d", useCores))
+        //fmt.Sprintf("PRIORITY=%d"))
+    if err := renderCmd.Run(); err != nil {
+        return err
+    }
+
     // read Stdin from process
     // output status, plus read line for blender error (see Job.detectError for all the string variations), returns (and deletes script file) if error
     // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)

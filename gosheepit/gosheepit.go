@@ -13,7 +13,6 @@ import (
 
     "github.com/stuarta0/go-sheepit-client/client"
     "github.com/stuarta0/go-sheepit-client/common"
-    su "github.com/stuarta0/go-sheepit-client/stringutils"
 )
 
 func main() {
@@ -21,7 +20,7 @@ func main() {
     flag.StringVar(&config.Server, "server", "", "Render-farm server")
     flag.StringVar(&config.Login, "login", "", "User's login")
     flag.StringVar(&config.Password, "password", "", "User's password")
-    cacheDirPtr := flag.String("cache-dir", "", "Cache/Working directory. Caution, everything in it not related to the render-farm will be removed")
+    flag.StringVar(&config.CacheDir, "cache-dir", "", "Cache/Working directory. Caution, everything in it not related to the render-farm will be removed")
     flag.IntVar(&config.MaxUploadingJob, "max-uploading-job", -1, "")
     flag.StringVar(&config.Gpu, "gpu", "", "CUDA name of the GPU used for the render, for example CUDA_0")
     computeMethodPtr := flag.String("compute-method", "", "CPU: only use cpu, GPU: only use gpu, CPU_GPU: can use cpu and gpu (not at the same time) if -gpu is not use it will not use the gpu")
@@ -47,11 +46,6 @@ func main() {
     // use string to identify compute method
     config.SetComputeMethod(*computeMethodPtr)
 
-    if cacheDirPtr != nil {
-        config.ProjectDir = *cacheDirPtr;
-        config.StorageDir = *cacheDirPtr;
-    }
-
     // if we have a config file, use it's values for those that weren't provided
     // NOTE: the java client config file is incompatible - it needs to be reformatted to valid TOML (i.e. quoted values for strings)
     if _, err := os.Stat(*configPathPtr); err != nil {
@@ -61,11 +55,6 @@ func main() {
         if _, err := toml.DecodeFile(*configPathPtr, &config2); err != nil {
             fmt.Printf("Unable to read config \"%s\": %s\n", *configPathPtr, err)
         } else {
-
-            if !su.IsEmpty(config2.ProjectDir) {
-                config2.StorageDir = config2.ProjectDir
-            }
-
             config.Merge(config2)
         }
     }

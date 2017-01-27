@@ -6,6 +6,7 @@ import (
     "fmt"
     "io/ioutil"
     "log"
+    "math"
     "os"
     "os/exec"
     "path"
@@ -44,8 +45,13 @@ func (j Job) GetContentPath() string {
     return path.Join(j.RootPath, j.ArchiveMd5)
 }
 
-func (j *Job) Render(device hardware.Computer, useCores int) error {
+func (j *Job) Render(device hardware.Computer, config Configuration) error {
     fmt.Println("Rendering")
+
+    useCores := hardware.CpuStat().TotalCores
+    if config.UseCores > 0 {
+        useCores = config.UseCores
+    }
 
     // String core_script = "import bpy\n" + "bpy.context.user_preferences.system.compute_device_type = \"%s\"\n" + "bpy.context.scene.cycles.device = \"%s\"\n" + "bpy.context.user_preferences.system.compute_device = \"%s\"\n";
     // if using GPU and has GPU: core_script % ("CUDA", "GPU", gpu.CudaName())
@@ -100,12 +106,12 @@ func (j *Job) Render(device hardware.Computer, useCores int) error {
         // PRIORITY: config.priority
     // process.setCoresUsed(config.cpuCores) - I get the impression limiting the CPU cores has been a problem since it's set everywhere
     // os.exec(process, env vars)
-    args := strings.Split(strings.TrimSpace(cmd), " ")
+    args := strings.Fields(cmd)
     renderCmd := exec.Command(path.Join(j.Renderer.GetContentPath(), hardware.RendererPath()), args...)
     renderCmd.Env = append(os.Environ(), 
         fmt.Sprintf("BLENDER_USER_CONFIG=%s", j.RootPath),
-        fmt.Sprintf("CORES=%d", useCores))
-        //fmt.Sprintf("PRIORITY=%d"))
+        fmt.Sprintf("CORES=%d", useCores),
+        fmt.Sprintf("PRIORITY=%d", config.Priority))
     
     // read Stdin from process
     // output status, plus read line for blender error (see Job.detectError for all the string variations), returns (and deletes script file) if error
@@ -114,29 +120,22 @@ func (j *Job) Render(device hardware.Computer, useCores int) error {
         return err
     }
 
-    // renderErr, err := renderCmd.StderrPipe()
-    // if err != nil {
-    //     return err
-    // }
-
     if err := renderCmd.Start(); err != nil {
         return err
     }
 
-    peakMemory := 0.0
+    peakMemory := 0
     scanner := bufio.NewScanner(renderOut)
+    re := regexp.MustCompile(`peak\s(\d+\.\d+)([bkmgtpe])`)
     for scanner.Scan() {
-        //log.Println(scanner.Text())
-
-        //[[peak 7.10] [peak 0.00]]
-        re := regexp.MustCompile(`peak\s(\d+\.\d+)([bkmgtpe])`)
         res := re.FindAllStringSubmatch(strings.ToLower(scanner.Text()), -1)
         if len(res) > 0 {
-            // TODO http://stackoverflow.com/a/3758880
-            memory, _ := strconv.ParseFloat(res[0][1], 64)
-            if memory > peakMemory {
-                peakMemory = memory
-                log.Printf("Peak Memory: %f", peakMemory)
+            size, _ := strconv.ParseFloat(res[0][1], 64)
+            memory := int(math.Pow(1024, float64(strings.Index("bkmgtpe", res[0][2]))) * size)
+            inKb := memory / 1024
+            if inKb > peakMemory {
+                peakMemory = inKb
+                log.Printf("Peak Memory: %d KiB", peakMemory)
             }
         }
     }

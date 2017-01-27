@@ -44,11 +44,14 @@ type Configuration struct {
 	Login string
 	Password string `json:"-"`
 
+	// Used for initialisation only
+	CacheDir string `toml:"cache-dir"`
+
 	// Directory containing downloaded project files. Default /tmp
-	ProjectDir string `toml:"cache-dir"`
+	ProjectDir string `toml:"project-dir"`
 
 	// Directory containing downloaded renderers. Default ~/.sheepit/
-	StorageDir string 
+	StorageDir string `toml:"storage-dir"`
 
 	MaxUploadingJob int
 	Gpu string `toml:"compute-gpu"` // TODO: calculate GPU device from interrogation of CUDA lib; OS-specific
@@ -86,6 +89,15 @@ func (c *Configuration) SetDefaults() {
 		c.Server = "https://client.sheepit-renderfarm.com"
 	}
 
+	if !su.IsEmpty(c.CacheDir) {
+		if su.IsEmpty(c.ProjectDir) {
+			c.ProjectDir = c.CacheDir
+		}
+		if su.IsEmpty(c.StorageDir) {
+			c.StorageDir = c.CacheDir
+		}
+	}
+
 	if su.IsEmpty(c.ProjectDir) {
 		if dir, err := ioutil.TempDir("", "farm_"); err != nil {
 			log.Fatal("Could not create temporary directory for Configuration.ProjectDir")
@@ -113,6 +125,7 @@ func (c *Configuration) Merge(other Configuration) {
 	if (su.IsEmpty(c.Server) && !su.IsEmpty(other.Server)) { c.Server = other.Server }
 	if (su.IsEmpty(c.Login) && !su.IsEmpty(other.Login)) { c.Login = other.Login }
 	if (su.IsEmpty(c.Password) && !su.IsEmpty(other.Password)) { c.Password = other.Password }
+	if (su.IsEmpty(c.CacheDir) && !su.IsEmpty(other.CacheDir)) { c.CacheDir = other.CacheDir }
 	if (su.IsEmpty(c.ProjectDir) && !su.IsEmpty(other.ProjectDir)) { c.ProjectDir = other.ProjectDir }
 	if (su.IsEmpty(c.StorageDir) && !su.IsEmpty(other.StorageDir)) { c.StorageDir = other.StorageDir }
 	if (c.MaxUploadingJob < 0 && other.MaxUploadingJob > 0) { c.MaxUploadingJob = other.MaxUploadingJob }

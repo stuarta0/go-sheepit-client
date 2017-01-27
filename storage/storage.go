@@ -63,6 +63,8 @@ func cleanDirectory(path string) error {
 
 // http://stackoverflow.com/a/24792688
 func Extract(src, dest string) error {
+
+    // TODO: standard package does not support password-protected ZIP
     r, err := zip.OpenReader(src)
     if err != nil {
         return err

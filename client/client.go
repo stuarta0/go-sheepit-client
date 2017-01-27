@@ -124,11 +124,7 @@ func (c *Client) Run() error {
         // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$job.path.crash.txt" if present then blender crashed (+delete file)
         // delete scene dir
         // return image file path
-    useCores := cpu.TotalCores
-    if c.Configuration.UseCores > 0 {
-        useCores = c.Configuration.UseCores
-    }
-    if err := job.Render(cpu, useCores); err != nil {
+    if err := job.Render(cpu, c.Configuration); err != nil {
         return err
     }
 

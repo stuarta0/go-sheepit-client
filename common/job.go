@@ -153,13 +153,19 @@ func (j *Job) Render(device hardware.Computer, config Configuration) (string, er
     }
 
     // find "$workingdir\$job.id_$job.frame*", if !exists, look for "$workingdir\$jobpath.crash.txt" if present then blender crashed (+delete file)
-    expectedName := fmt.Sprintf("%d_%04d", j.Id, j.Frame)
+    // regex ensures frame number padding is handled, e.g. 1_0340.png, 001_340.jpg and 1_00340.exr all match job 1, frame 340
+    expectedName := regexp.MustCompile(`^(\d+)_(\d+)\.`)
     var outputPath, errorPath string
     files, _ := ioutil.ReadDir(j.RootPath)
     for _, file := range files {
         filename := file.Name()
-        if filename[0:len(filename)-len(filepath.Ext(filename))] == expectedName {
-            outputPath = filepath.Join(j.RootPath, filename)
+        match := expectedName.FindStringSubmatch(filename)
+        if match != nil {
+            id, _ := strconv.ParseInt(match[1], 10, 32)
+            frame, _ := strconv.ParseInt(match[2], 10, 32)
+            if int(id) == j.Id && int(frame) == j.Frame {
+                outputPath = filepath.Join(j.RootPath, filename)
+            }
         }
         if filename == fmt.Sprintf("%s.crash.txt", j.Path) {
             errorPath = filepath.Join(j.RootPath, filename)
@@ -171,7 +177,7 @@ func (j *Job) Render(device hardware.Computer, config Configuration) (string, er
     }
 
     if _, err := os.Stat(outputPath); err != nil {
-        return "", errors.New("Job::render no picture file found (after finished render (filename_without_extension " + expectedName + ")")
+        return "", errors.New(fmt.Sprintf("Job::render no picture file found (\"%d_%04d.*\")", j.Id, j.Frame))
     }
 
     // delete scene dir
